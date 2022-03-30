@@ -360,6 +360,8 @@ void GameStatePlayUpdate(void)
     // update physics
     // ===============
 
+    // TODO: Move to the server update
+
     for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
         GameObjInst* pInst = sGameObjInstList + i;
 
@@ -382,12 +384,21 @@ void GameStatePlayUpdate(void)
         if ((pInst->flag & FLAG_ACTIVE) == 0)
             continue;
 
+        // TODO: Execute ship update ONLY to our ship. The position from the rest of the ships will be handled by the server
+        // and sent to us somehow.
+        //
+        // spShip->wrap
+        //
+         
         // check if the object is a ship
         if (pInst->pObject->type == TYPE_SHIP) {
             // warp the ship from one end of the screen to the other
             pInst->posCurr.x = wrap(pInst->posCurr.x, gAEWinMinX - SHIP_SIZE, gAEWinMaxX + SHIP_SIZE);
             pInst->posCurr.y = wrap(pInst->posCurr.y, gAEWinMinY - SHIP_SIZE, gAEWinMaxY + SHIP_SIZE);
         }
+
+        // TODO: We may execute the asteroid update in the client, and if we receive a position from the server override it.
+
         // check if the object is an asteroid
         else if (pInst->pObject->type == TYPE_ASTEROID) {
             vec2  u;
@@ -397,6 +408,8 @@ void GameStatePlayUpdate(void)
             pInst->posCurr.x = wrap(pInst->posCurr.x, gAEWinMinX - AST_SIZE_MAX, gAEWinMaxX + AST_SIZE_MAX);
             pInst->posCurr.y = wrap(pInst->posCurr.y, gAEWinMinY - AST_SIZE_MAX, gAEWinMaxY + AST_SIZE_MAX);
 
+            // TODO: Pull the asteroid toward the nearest ship
+            
             // pull the asteroid toward the ship a little bit
             if (spShip) {
                 // apply acceleration propotional to the distance from the asteroid to
@@ -540,6 +553,7 @@ void GameStatePlayUpdate(void)
         if ((pSrc->flag & FLAG_ACTIVE) == 0)
             continue;
 
+        // Bullets vs Asteroids
         if ((pSrc->pObject->type == TYPE_BULLET) ||
             (pSrc->pObject->type == TYPE_MISSILE)) {
             for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
@@ -584,6 +598,8 @@ void GameStatePlayUpdate(void)
 
                 break;
             }
+
+            // Bomb vs Asteroids
         } else if (TYPE_BOMB == pSrc->pObject->type) {
             float radius = 1.0f - pSrc->life;
 
@@ -629,6 +645,8 @@ void GameStatePlayUpdate(void)
                     astCreate(pDst);
                 }
             }
+
+            // Asteroid vs Asteroid
         } else if (pSrc->pObject->type == TYPE_ASTEROID) {
             for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
                 GameObjInst* pDst = sGameObjInstList + j;
@@ -655,6 +673,8 @@ void GameStatePlayUpdate(void)
                 // calculate new object velocities
                 resolveCollision(pSrc, pDst, &nrm);
             }
+
+            // SHIP vs Asteroid
         } else if (pSrc->pObject->type == TYPE_SHIP) {
             for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
                 GameObjInst* pDst = sGameObjInstList + j;
@@ -1062,19 +1082,30 @@ GameObjInst* astCreate(GameObjInst* pSrc)
         return pSrc;
     }
 
-    // pick a random angle and velocity magnitude
-    angle = frand() * 2.0f * PI;
-    size  = frand() * (AST_SIZE_MAX - AST_SIZE_MIN) + AST_SIZE_MIN;
-
+    // TODO: The server must pass the position instead of computing it in the client.
     // pick a random position along the top or left edge
-    if ((t = frand()) < 0.5f)
-        pos = {gAEWinMinX + (t * 2.0f) * (gAEWinMaxX - gAEWinMinX), gAEWinMinY - size * 0.5f};
-    else
-        pos = {gAEWinMinX - size * 0.5f, gAEWinMinY + ((t - 0.5f) * 2.0f) * (gAEWinMaxY - gAEWinMinY)};
+    //
+    //  struct AsteroidPacket
+    // {
+    //      vec2 pos;
+    //      vec2 velocity;
+    //      vec2 size;   
+    // };
+    //
+    {
+        // pick a random angle and velocity magnitude
+        angle = frand() * 2.0f * PI;
+        size  = frand() * (AST_SIZE_MAX - AST_SIZE_MIN) + AST_SIZE_MIN;
 
-    // calculate the velocity vector
-    vel = {glm::cos(angle), glm::sin(angle)};
-    vel = vel * frand() * (AST_VEL_MAX - AST_VEL_MIN) + AST_VEL_MIN;
+        if ((t = frand()) < 0.5f)
+            pos = { gAEWinMinX + (t * 2.0f) * (gAEWinMaxX - gAEWinMinX), gAEWinMinY - size * 0.5f };
+        else
+            pos = { gAEWinMinX - size * 0.5f, gAEWinMinY + ((t - 0.5f) * 2.0f) * (gAEWinMaxY - gAEWinMinY) };
+
+        // calculate the velocity vector
+        vel = { glm::cos(angle), glm::sin(angle) };
+        vel = vel * frand() * (AST_VEL_MAX - AST_VEL_MIN) + AST_VEL_MIN;
+    }
 
     // create the object instance
     pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true);
