@@ -116,6 +116,20 @@ struct GameObjInst
 // ---------------------------------------------------------------------------
 // Static variables
 
+struct PlayerInfo
+{
+    unsigned char playerID;
+    vec2 pos;
+    vec2 velocity;
+};
+
+struct AsteroidInfo
+{
+    unsigned char astID;
+    vec2 pos;
+    vec2 velocity;
+};
+
 // list of original object
 static GameObj  sGameObjList[GAME_OBJ_NUM_MAX];
 static uint32_t sGameObjNum;

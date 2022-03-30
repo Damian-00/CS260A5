@@ -40,9 +40,12 @@ find_package(glad CONFIG REQUIRED) # vcpkg install glad:x64-windows
 ############################
 # Engine
 add_subdirectory(src/engine)
+# Networking
+add_subdirectory(src/networking)
 
 target_link_libraries(asteroids PRIVATE 
   asteroids_engine
+  asteroids_networking
   # imgui::imgui
   glad::glad
   glfw
