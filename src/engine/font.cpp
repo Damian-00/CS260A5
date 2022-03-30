@@ -205,6 +205,7 @@ namespace engine {
         assert(token.starts_with("file="));
         auto filename = token.substr(std::strlen("file="));
         if (filename.starts_with("\"")) filename = filename.substr(1, filename.size() - 2); // Remove quotes
+        filename = "../../../" + filename;
         // Create texture
         assert(!m_texture);
         m_texture = new engine::texture;
