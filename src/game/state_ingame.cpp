@@ -111,6 +111,7 @@ struct GameObjInst
     float    dirCurr;   // object current direction
     mat4     transform; // object drawing matrix
     void*    pUserData; // pointer to custom data specific for each object type
+    unsigned id;        
 };
 
 // ---------------------------------------------------------------------------

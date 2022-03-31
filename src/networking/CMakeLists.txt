@@ -8,10 +8,19 @@ add_library(asteroids_networking
   # Networking
   networking.hpp
   networking.cpp
+  protocol.hpp
+  protocol.cpp
+
 
 )
 
 # Winsock (Windows only)
 if (WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32.lib)
+    target_link_libraries(asteroids_networking PRIVATE
+    ws2_32.lib
+    )
+
+    target_link_libraries(asteroids_networking PRIVATE 
+    glm::glm
+    )
 endif ()
