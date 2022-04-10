@@ -5,23 +5,13 @@
 
 namespace CS260
 {
-
-	const unsigned char SYNCODE = 0b1;
-	const unsigned char SYNACKCODE = 0b10;
-	const unsigned char ACKCODE = 0b1000;
-	const unsigned char RSTCODE = 0b1000000;
-
 	struct ClientInfo
 	{
-		unsigned char mID;
 		sockaddr mEndpoint;
+		unsigned char mID;
+		glm::vec2 pos;
 	};
-	struct ConnectionPacket
-	{
-		unsigned mACK;
-		unsigned char mCode;		
-	};
-
+	
 	class Server
 	{
 		bool mVerbose;
@@ -34,7 +24,7 @@ namespace CS260
 		/*	\fn Server
 		\brief	Server constructor following RAII design
 		*/
-		Server(bool verbose);
+		Server(bool verbose, const std::string& ip_address, uint16_t port);
 
 		/*	\fn ~Server
 		\brief	Server destructor following RAII design
@@ -66,7 +56,7 @@ namespace CS260
 		*/
 		bool SendRST(sockaddr& senderAddress, ConnectionPacket& packet);
 
-
+		void SendPlayerPositions();
 
 		void PrintMessage(const std::string& msg);
 		void PrintError(const std::string& msg);

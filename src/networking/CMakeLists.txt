@@ -8,6 +8,13 @@ add_library(asteroids_networking
   # Networking
   networking.hpp
   networking.cpp
+  utils.hpp
+  utils.cpp
+  server.hpp
+  server.cpp
+  client.hpp
+  client.cpp
+
 
 )
 

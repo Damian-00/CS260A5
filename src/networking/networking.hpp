@@ -31,7 +31,63 @@
 using socklen_t = int; // Trick for accept
 #endif
 
-namespace CS260 {
+namespace CS260 
+{
+	const int timeout = 0;
+	const unsigned char SYNCODE = 0b1;
+	const unsigned char SYNACKCODE = 0b10;
+	const unsigned char LASTACKCODE = 0b100;
+	const unsigned char ACKCODE = 0b1000;
+	const unsigned char FIN1CODE = 0b10000;
+	const unsigned char FIN2CODE = 0b100000;
+	const unsigned char RSTCODE = 0b1000000;
+
+
+	struct ConnectionPacketHeader
+	{
+		unsigned char mSequence;
+		unsigned char mACK;
+		unsigned char mCode;
+	};
+
+	struct ConnectionPacket
+	{
+		ConnectionPacketHeader mHeader;
+		void AttachACK(unsigned ack)
+		{
+			mHeader.mACK = ack;
+		}
+		void SetCode(unsigned char code)
+		{
+			mHeader.mCode = code;
+		}
+		void SetSequence(unsigned char sequence)
+		{
+			mHeader.mSequence = sequence;
+		}
+		unsigned char GetSequence()
+		{
+			return mHeader.mSequence;
+		}
+		unsigned char GetACK()
+		{
+			return mHeader.mACK;
+		}
+		unsigned char GetExpectedACK()
+		{
+			return mHeader.mACK + mHeader.mCode;
+		}
+		unsigned char GetCode()
+		{
+			return mHeader.mCode;
+		}
+	};
+
+	struct PlayerPacket
+	{
+		unsigned char mCode;
+		glm::vec2 pos;
+	};
     /**
      * @brief
      *  Initializes the networking library

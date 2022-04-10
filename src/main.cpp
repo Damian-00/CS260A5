@@ -2,8 +2,13 @@
 #include "engine/opengl.hpp"
 #include "game/game.hpp"
 
+#include "networking/server.hpp"
+#include "networking/client.hpp"
+#include "networking/networking.hpp"
+#include "networking/utils.hpp"
 
-void Parse(int argc, char** argv, bool* is_client, bool* is_server, std::string* address, unsigned* port, bool* verbose) {
+
+void Parse(int argc, char** argv, bool* is_client, bool* is_server, std::string* address, uint16_t* port, bool* verbose) {
 
 	for (int i = 0; i < argc; i++) {// for each argument we find, parse it
 
@@ -35,19 +40,20 @@ int main(int argc, char** argv)
 	bool is_client = false;
 	bool is_server = false;
 	std::string address;
-	unsigned port = 0;
+	uint16_t port = 0;
 
 	bool verbose = false;
 
 	Parse(argc, argv, &is_client, &is_server, &address, &port, &verbose);
 
+	game::instance().create(is_server, address, port, verbose);
 
-
-    game::instance().create();
-    bool exit = false;
-    do {
-        exit = !game::instance().update();
-    } while (!exit);
+	bool exit = false;
+	do
+	{
+		exit = !game::instance().update();
+	} while (!exit);
+	
     game::instance().destroy();
     return 0;
 }

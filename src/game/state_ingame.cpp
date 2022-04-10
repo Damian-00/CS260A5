@@ -9,6 +9,9 @@
 #include "engine/window.hpp" // window
 #include "engine/font.hpp"   // font
 #include "game/game.hpp"     // game features
+#include "networking/utils.hpp" // networking utils
+#include "networking/client.hpp" // networking utils
+#include "networking/server.hpp" // networking utils
 
 // ---------------------------------------------------------------------------
 // Defines
@@ -141,6 +144,14 @@ static uint32_t    sGameObjInstNum;
 // pointer ot the ship object
 static GameObjInst* spShip;
 
+struct RemoteShipInfo
+{
+    unsigned char mPlayerID;
+    GameObjInst* mShipInstance;
+};
+
+static std::vector<RemoteShipInfo> mRemoteShips;
+
 // keep track when the last asteroid was created
 static float sAstCreationTime;
 
@@ -167,6 +178,14 @@ static int gAEWinMinX = 0;
 static int gAEWinMaxX = 640;
 static int gAEWinMinY = 0;
 static int gAEWinMaxY = 480;
+
+
+// Networking handles
+static auto networkClock = CS260::now();
+
+static bool is_server = false;
+static CS260::Server* server = nullptr;
+static CS260::Client* client = nullptr;
 
 // ---------------------------------------------------------------------------
 
@@ -212,7 +231,7 @@ void GameStatePlayLoad(void)
 
 // ---------------------------------------------------------------------------
 
-void GameStatePlayInit(void)
+void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port, bool verbose)
 {
     // reset the number of current asteroid and the total allowed
     sAstCtr = 0;
@@ -236,6 +255,12 @@ void GameStatePlayInit(void)
 
     // reset the delay to switch to the result state after game over
     sGameStateChangeCtr = 2.0f;
+    is_server = serverIs;
+
+    if (serverIs)
+        server = new CS260::Server(verbose, address, port);
+    else
+		client = new CS260::Client(address, port, verbose);
 }
 
 // ---------------------------------------------------------------------------
@@ -762,6 +787,19 @@ void GameStatePlayUpdate(void)
         auto r           = glm::rotate(pInst->dirCurr, vec3(0, 0, 1));
         auto s           = glm::scale(vec3(pInst->scale, pInst->scale, 1));
         pInst->transform = t * r * s;
+    }
+
+
+    // ====================
+    // Networking
+    // ====================
+    // Update the network 60 times/seconds
+    if (CS260::ms_since(networkClock) > 16)
+    {
+        if (is_server)
+            server->Tick();
+        else
+            client->Tick();
     }
 }
 

@@ -1,8 +1,11 @@
 #include "server.hpp"
+#include "server.hpp"
+
+#include "utils.hpp"
 
 namespace CS260
 {
-	Server::Server(bool verbose):
+	Server::Server(bool verbose, const std::string& ip_address, uint16_t port) :
 	mVerbose(verbose)
 	{
 		// Initialize the networking library
@@ -18,7 +21,7 @@ namespace CS260
 			throw std::runtime_error("Error creating server socket");
 		}
 		else
-			PrintMessage("Created socket successfully.", verbose);
+			PrintMessage("Created socket successfully.");
 
 		mEndpoint.sin_family = AF_INET;
 		mEndpoint.sin_addr = CS260::ToIpv4(ip_address);
@@ -33,7 +36,7 @@ namespace CS260
 			throw std::runtime_error("Error binding server socket");
 		}
 		else
-			PrintMessage("Bound socket.", verbose);
+			PrintMessage("Bound socket.");
 
 		SetSocketBlocking(mSocket, false);
 	}
@@ -54,19 +57,24 @@ namespace CS260
 		}
 		// Handle game state
 		else
-		{ }
+		{ 
+			// Send player positions to all clients
+			
+		}
 	}
 
 	void Server::HandleNewClients()
 	{
 		PrintMessage("Accepting new client");
 
+		ConnectionPacket packet;
 		sockaddr senderAddress;
 		if(ReceiveSYN(senderAddress, packet))
 			if (SendSYNACK(senderAddress, packet))
 				if (ReceiveACKFromSYNACK(senderAddress, packet))
-				{ }
-
+				{
+					mClients.push_back({ static_cast<unsigned char>(mClients.size()), senderAddress });
+				}
 	}
 
 	bool Server::ReceiveSYN(sockaddr& senderAddress, ConnectionPacket& packet)
@@ -74,7 +82,6 @@ namespace CS260
 		WSAPOLLFD poll;
 		poll.fd = mSocket;
 		poll.events = POLLIN;
-		sockaddr senderAddress;
 		socklen_t size = sizeof(senderAddress);
 
 		if (WSAPoll(&poll, 1, timeout) > 0)
@@ -87,7 +94,7 @@ namespace CS260
 			else if (poll.revents & (POLLIN | POLLHUP))
 			{
 				// Receive SYN
-				int bytesReceived = ::recvfrom(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0, &senderAddress, &size);
+				int bytesReceived = ::recvfrom(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacketHeader), 0, &senderAddress, &size);
 
 				// Handle error
 				if (bytesReceived == SOCKET_ERROR)
@@ -99,15 +106,15 @@ namespace CS260
 				else
 				{
 					// Make sure this is a SYN code
-					if (packet.mCode & SYNCODE)
+					if (packet.GetCode() & SYNCODE)
 					{
-						PrintMessage("Received SYN code", mVerbose);
+						PrintMessage("Received SYN code");
 						return true;
 					}
 					// We were told to reset connection establishment
-					else if (packet.mCode & RSTCODE)
+					else if (packet.GetCode() & RSTCODE)
 					{
-						PrintMessage("Reseting connection.", mVerbose);
+						PrintMessage("Reseting connection.");
 						return false;
 					}
 					// If not, this message needs a reset
@@ -115,7 +122,7 @@ namespace CS260
 					// Anyway, send a reset message in case there are two clients trying to connect
 					else
 					{
-						PrintMessage("Received wrong code while connecting", mVerbose);
+						PrintMessage("Received wrong code while connecting");
 						SendRST(senderAddress, packet);
 						return false;
 					}
@@ -137,7 +144,7 @@ namespace CS260
 		packet.SetCode(SYNACKCODE);
 
 		// We only need to send the header as it will contatin the code and the required ack
-		int bytesSent = ::sendto(mSocket, reinterpret_cast<char*>(&packet), sizeof(ProtocolHeader), 0, &senderAddress, size);
+		int bytesSent = ::sendto(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacket), 0, &senderAddress, size);
 
 		// Handle errors
 		if (bytesSent == SOCKET_ERROR)
@@ -147,14 +154,14 @@ namespace CS260
 		}
 		else
 		{
-			PrintMessage("Sending SYNACK with sequence " + std::to_string(packet.GetSequence()), mVerbose);
+			PrintMessage("Sending SYNACK with sequence " + std::to_string(packet.GetSequence()));
 			return true;
 		}
 	}
 
 	bool Server::ReceiveACKFromSYNACK(sockaddr& senderAddress, ConnectionPacket& packet)
 	{
-		unsigned expectedACK = packet.GetExpectACK();
+		unsigned expectedACK = packet.GetExpectedACK();
 		auto clock = now();
 		socklen_t size = sizeof(senderAddress);
 		do
@@ -171,9 +178,9 @@ namespace CS260
 				}
 				else
 				{
-					PrintMessage("Waiting for ACK to SYNACK expected ACK " + std::to_string(expectedACK), mVerbose); ;
+					PrintMessage("Waiting for ACK to SYNACK expected ACK " + std::to_string(expectedACK));
 					// Receive ACK of SYNACK
-					int bytesReceived = ::recvfrom(mSocket, reinterpret_cast<char*>(&packet), sizeof(ProtocolPacket), 0, &senderAddress, &size);
+					int bytesReceived = ::recvfrom(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacketHeader), 0, &senderAddress, &size);
 					if (bytesReceived == SOCKET_ERROR)
 					{
 						PrintError("Receiving ACK from SYNACK");
@@ -183,44 +190,24 @@ namespace CS260
 					if (packet.GetCode() & ACKCODE)
 					{
 						unsigned packetACK = packet.GetACK();
-						PrintMessage("Received ACK to SYNACK " + std::to_string(packetACK), mVerbose); ;
+						PrintMessage("Received ACK to SYNACK " + std::to_string(packetACK));
 
 						// Make sure the current ack is the expected one
 						if (packetACK == expectedACK)
 						{
-							// Connect to the client socket to the given address to allow calling
-							// send and recv with the client being the default receiver and sender
-							// We will forget about new clients sending messages while we are transferring a file
-							if (::connect(mSocket, &senderAddress, sizeof(senderAddress)) == SOCKET_ERROR)
-							{
-								PrintError("on ::connect to client socket");
-								return false;
-							}
-							else
-							{
-								PrintMessage("[SERVER] Connected socket correctly.", mVerbose);
-
-								unsigned msgSize = packet.GetMsgSize();
-
-								// Make the filename string big enough
-								mCurrentFilename.resize(msgSize);
-
-								// Copy the attached filename
-								::memcpy(mCurrentFilename.data(), packet.msg.data(), msgSize);
-								return true;
-							}
+							//TODO: Connect the client
 						}
 					}
 					// RESET
 					else if (packet.GetCode() & RSTCODE)
 					{
-						PrintMessage("Received RST", mVerbose);
+						PrintMessage("Received RST");
 						return false;
 					}
 					// We received any other type of message probably mixed from a previous client
 					else
 					{
-						PrintMessage("Received unknown type of message", mVerbose);
+						PrintMessage("Received unknown type of message");
 						// Although this message is most likely to be ignored, send a reset request in case
 						// two clients are trying to connect at the same time
 						SendRST(senderAddress, packet);
@@ -231,7 +218,7 @@ namespace CS260
 		} while (ms_since(clock) < 5000);
 
 		// In case of timeout waiting for the ACK from SYNACK restart connection
-		PrintMessage("Timeout waiting for ACK from SYNACK", mVerbose);
+		PrintMessage("Timeout waiting for ACK from SYNACK");
 		SendRST(senderAddress, packet);
 		return false;
 	}
@@ -250,9 +237,31 @@ namespace CS260
 			PrintError("Error sending RST");
 		}
 		else
-			PrintMessage("[SERVER] Sending RST correctly", mVerbose);
+			PrintMessage("[SERVER] Sending RST correctly");
 
 		return false;
+	}
+
+	void Server::SendPlayerPositions()
+	{
+		for (auto& senderClient : mClients)
+		{
+			PlayerPacket currentPacket;
+			currentPacket.pos = senderClient.pos;
+			currentPacket.mCode = 0;
+			for (auto& receiverClient : mClients)
+			{
+				// Avoid sending to the same client
+				if (senderClient.mID != receiverClient.mID)
+				{
+					auto bytesReceived = ::sendto(mSocket, &currentPacket, sizeof(PlayerPacket), 0, &receiverClient.mEndpoint, sizeof(receiverClient.mEndpoint));
+					if(bytesReceived == SOCKET_ERROR)
+					{
+						// TODO: Handle error
+					}
+				}
+			}
+		}
 	}
 
 	void Server::PrintMessage(const std::string& msg)
