@@ -34,6 +34,7 @@ using socklen_t = int; // Trick for accept
 namespace CS260 
 {
 	const int timeout = 0;
+	const unsigned char NEWPLAYER = 0b0;
 	const unsigned char SYNCODE = 0b1;
 	const unsigned char SYNACKCODE = 0b10;
 	const unsigned char LASTACKCODE = 0b100;
@@ -75,7 +76,7 @@ namespace CS260
 		}
 		unsigned char GetExpectedACK()
 		{
-			return mHeader.mACK + mHeader.mCode;
+			return mHeader.mACK + mHeader.mSequence;
 		}
 		unsigned char GetCode()
 		{
@@ -83,10 +84,10 @@ namespace CS260
 		}
 	};
 
-	struct PlayerPacket
+	struct NewPlayerPacket
 	{
+		unsigned char mID;
 		unsigned char mCode;
-		glm::vec2 pos;
 	};
     /**
      * @brief

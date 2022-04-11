@@ -9,7 +9,7 @@ namespace CS260
 	{
 		sockaddr mEndpoint;
 		unsigned char mID;
-		glm::vec2 pos;
+		float pos[2];
 	};
 	
 	class Server
@@ -32,6 +32,9 @@ namespace CS260
 		~Server();
 
 		void Tick();
+
+		int PlayerCount();
+
 	private:
 
 		void HandleNewClients();

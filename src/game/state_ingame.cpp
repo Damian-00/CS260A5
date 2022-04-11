@@ -144,6 +144,8 @@ static uint32_t    sGameObjInstNum;
 // pointer ot the ship object
 static GameObjInst* spShip;
 
+// NETWORKING MULTIPLAYER
+
 struct RemoteShipInfo
 {
     unsigned char mPlayerID;
@@ -233,13 +235,21 @@ void GameStatePlayLoad(void)
 
 void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port, bool verbose)
 {
+    if (serverIs)
+        server = new CS260::Server(verbose, address, port);
+    else
+        client = new CS260::Client(address, port, verbose);
+	
     // reset the number of current asteroid and the total allowed
     sAstCtr = 0;
     sAstNum = AST_NUM_MIN;
 
-    // create the main ship
-    spShip = gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, 0, 0, 0.0f, true);
-    assert(spShip);
+    if (!serverIs)
+    {
+        // create the main ship
+        spShip = gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, 0, 0, 0.0f, true);
+        assert(spShip);
+    }
 
     // get the time the asteroid is created
     sAstCreationTime = game::instance().game_time();
@@ -257,10 +267,6 @@ void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port,
     sGameStateChangeCtr = 2.0f;
     is_server = serverIs;
 
-    if (serverIs)
-        server = new CS260::Server(verbose, address, port);
-    else
-		client = new CS260::Client(address, port, verbose);
 }
 
 // ---------------------------------------------------------------------------
@@ -797,9 +803,23 @@ void GameStatePlayUpdate(void)
     if (CS260::ms_since(networkClock) > 16)
     {
         if (is_server)
+        {
             server->Tick();
+            // We added a new player
+			if(server->PlayerCount() > mRemoteShips.size())
+            {
+				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (mRemoteShips.size()), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, 0, 0, 0.0f, true)});
+            }
+        }		
         else
+        {
             client->Tick();
+			
+            for(auto& playerInfo : client->GetNewPlayers())
+            {
+                mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, 0, 0, 0.0f, true) });
+            }
+        }		
     }
 }
 

@@ -1,5 +1,6 @@
 #include "server.hpp"
 #include "server.hpp"
+#include "server.hpp"
 
 #include "utils.hpp"
 
@@ -51,7 +52,7 @@ namespace CS260
 	{
 		// TOOD: We may start the game with less than 4 players
 		// For the moment, wait untill there are 4 players connected
-		if (mClients.size() < 4)
+		if (mClients.size() < 2)
 		{
 			HandleNewClients();
 		}
@@ -61,6 +62,11 @@ namespace CS260
 			// Send player positions to all clients
 			
 		}
+	}
+
+	int Server::PlayerCount()
+	{
+		return mClients.size();
 	}
 
 	void Server::HandleNewClients()
@@ -73,7 +79,16 @@ namespace CS260
 			if (SendSYNACK(senderAddress, packet))
 				if (ReceiveACKFromSYNACK(senderAddress, packet))
 				{
-					mClients.push_back({ static_cast<unsigned char>(mClients.size()), senderAddress });
+					NewPlayerPacket newPlayer;
+					newPlayer.mCode = NEWPLAYER;
+					newPlayer.mID = mClients.size();
+					// TODO: Notify the rest of the clients of the new client relialably
+					for (auto& client : mClients)
+					{
+						::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket),0, &client.mEndpoint, sizeof(client.mEndpoint));
+						// TODO: Handle error checking
+					}
+					mClients.push_back(ClientInfo{ senderAddress, static_cast<unsigned char>(mClients.size())});
 				}
 	}
 
@@ -82,6 +97,7 @@ namespace CS260
 		WSAPOLLFD poll;
 		poll.fd = mSocket;
 		poll.events = POLLIN;
+		
 		socklen_t size = sizeof(senderAddress);
 
 		if (WSAPoll(&poll, 1, timeout) > 0)
@@ -138,7 +154,9 @@ namespace CS260
 
 		// We will only send the SYNACKCODE and the ACK number
 		// Which are included by themselsves, so we do not add anything
-		packet.AttachACK(0);
+		packet.AttachACK(packet.GetSequence() + packet.GetACK());
+		
+		packet.SetSequence(now_ns());		
 
 		// Change the type of message
 		packet.SetCode(SYNACKCODE);
@@ -195,7 +213,8 @@ namespace CS260
 						// Make sure the current ack is the expected one
 						if (packetACK == expectedACK)
 						{
-							//TODO: Connect the client
+							PrintMessage("Client connected.");							
+							return true;
 						}
 					}
 					// RESET
@@ -246,21 +265,22 @@ namespace CS260
 	{
 		for (auto& senderClient : mClients)
 		{
-			PlayerPacket currentPacket;
-			currentPacket.pos = senderClient.pos;
-			currentPacket.mCode = 0;
-			for (auto& receiverClient : mClients)
-			{
-				// Avoid sending to the same client
-				if (senderClient.mID != receiverClient.mID)
-				{
-					auto bytesReceived = ::sendto(mSocket, &currentPacket, sizeof(PlayerPacket), 0, &receiverClient.mEndpoint, sizeof(receiverClient.mEndpoint));
-					if(bytesReceived == SOCKET_ERROR)
-					{
-						// TODO: Handle error
-					}
-				}
-			}
+			//NewPlayerPacket currentPacket;
+			//currentPacket.pos[0] = senderClient.pos[0];
+			//currentPacket.pos[1] = senderClient.pos[1];
+			//currentPacket.mCode = 0;
+			//for (auto& receiverClient : mClients)
+			//{
+			//	// Avoid sending to the same client
+			//	if (senderClient.mID != receiverClient.mID)
+			//	{
+			//		auto bytesReceived = ::sendto(mSocket, reinterpret_cast<char*>( &currentPacket), sizeof(PlayerPacket), 0, &receiverClient.mEndpoint, sizeof(receiverClient.mEndpoint));
+			//		if(bytesReceived == SOCKET_ERROR)
+			//		{
+			//			// TODO: Handle error
+			//		}
+			//	}
+			//}
 		}
 	}
 

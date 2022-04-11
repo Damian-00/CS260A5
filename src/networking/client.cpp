@@ -1,5 +1,6 @@
 #include "client.hpp"
 #include "client.hpp"
+#include "client.hpp"
 
 #include "utils.hpp"
 
@@ -67,7 +68,10 @@ namespace CS260
 
 	void Client::Tick()
 	{
-		PlayerPacket packet;
+		// TODO: Reset the counter properly
+		
+		mNewPlayersOnFrame.clear();
+		NewPlayerPacket packet;
 		WSAPOLLFD poll;
 		poll.fd = mSocket;
 		poll.events = POLLIN;
@@ -88,14 +92,19 @@ namespace CS260
 				}
 				else
 				{
-					// TODO: Remove magic numbers
 					// This should be handled playerpacket
-					if (packet.mCode & 0)
+					if (packet.mCode & NEWPLAYER)
 					{
+						mNewPlayersOnFrame.push_back(packet);
 					}
 				}
 			}
 		}
+	}
+
+	std::vector<NewPlayerPacket>  Client::GetNewPlayers()
+	{
+		return mNewPlayersOnFrame;
 	}
 
 	/*	\fn ConnectToServer
@@ -138,7 +147,7 @@ namespace CS260
 		// Attach to the packet a sequence number that should be
 		// too difficult to be duplicated
 		packet.SetSequence(now_ns());
-		packet.AttachACK(0);
+		packet.AttachACK( rand() % now_ns() + 1);
 		packet.SetCode(SYNCODE);
 
 		// Send SYN message to the server
@@ -209,6 +218,7 @@ namespace CS260
 							{
 								// Attach the filename we want to receive
 								packet.SetCode(ACKCODE);
+								packet.AttachACK(packet.GetSequence() + packet.GetACK());
 
 								// Send ACK of SYNACK
 								bytesReceived = ::send(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacket), 0);

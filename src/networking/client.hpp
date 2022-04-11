@@ -11,6 +11,7 @@
 *******************************************************************************/
 #pragma once
 #include <string>
+#include <vector>
 
 #include "networking.hpp"
 
@@ -20,6 +21,7 @@ namespace CS260
 	{
 		bool mVerbose;
 		SOCKET mSocket;
+		std::vector<NewPlayerPacket> mNewPlayersOnFrame;
 		
 	public:
 
@@ -34,6 +36,8 @@ namespace CS260
 		~Client();
 
 		void Tick();
+
+		std::vector<NewPlayerPacket> GetNewPlayers();
 
 	private:
 		/*	\fn ConnectToServer
