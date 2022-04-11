@@ -1,6 +1,7 @@
 #pragma once
 #include <chrono>
 #include <unordered_map>
+#include <string>
 
 namespace engine {
     class window;
@@ -26,7 +27,7 @@ class game
 
     // AlphaEngine-like states
     void (*m_state_load)();
-    void (*m_state_init)();
+    void (*m_state_init)(bool, const std::string&, uint16_t, bool);
     void (*m_state_update)();
     void (*m_state_render)();
     void (*m_state_free)();
@@ -43,11 +44,11 @@ class game
         static game inst;
         return inst;
     }
-    void create();
+    void create(bool is_server, const std::string& address, uint16_t port, bool verbose);
     bool update();
     void destroy();
 
-    void set_state_ingame();
+    void set_state_ingame(bool is_server, const std::string& address, uint16_t port, bool verbose);
 
     float                      game_time() const { return m_game_time; }
     float                      dt() const { return m_dt; }

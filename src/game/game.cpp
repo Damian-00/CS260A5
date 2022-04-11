@@ -9,7 +9,7 @@
 
 // State ingame
 void GameStatePlayLoad(void);
-void GameStatePlayInit(void);
+void GameStatePlayInit(bool is_server, const std::string& address, uint16_t port, bool verbose);
 void GameStatePlayUpdate(void);
 void GameStatePlayDraw(void);
 void GameStatePlayFree(void);
@@ -23,7 +23,7 @@ namespace {
  * @brief 
  * 
  */
-void game::create()
+void game::create(bool is_server, const std::string& address, uint16_t port, bool verbose)
 {
     // Window
     m_window = new engine::window();
@@ -39,7 +39,8 @@ void game::create()
     m_start_time_point = clock::now();
     m_frame_time_point = m_start_time_point;
     m_game_time        = 0.0f;
-    set_state_ingame();
+	
+    set_state_ingame(is_server, address, port, verbose);
 }
 
 /**
@@ -75,7 +76,7 @@ bool game::update()
  * @brief 
  * 
  */
-void game::set_state_ingame()
+void game::set_state_ingame(bool is_server, const std::string& address, uint16_t port, bool verbose)
 {
     if (m_state_free) m_state_free();
     if (m_state_unload) m_state_unload();
@@ -88,7 +89,7 @@ void game::set_state_ingame()
     m_state_unload = &GameStatePlayUnload;
 
     m_state_load();
-    m_state_init();
+    m_state_init(is_server, address, port, verbose);
 }
 
 void game::destroy()
