@@ -22,6 +22,7 @@ set(SRC
   src/game/game.hpp
   src/game/game.cpp
   src/game/state_ingame.cpp
+  src/networking/protocol.hpp
 )
 
 # Executable
@@ -43,6 +44,8 @@ add_subdirectory(src/engine)
 # Networking
 add_subdirectory(src/networking)
 
+
+
 target_link_libraries(asteroids PRIVATE 
   asteroids_engine
   asteroids_networking
@@ -51,4 +54,6 @@ target_link_libraries(asteroids PRIVATE
   glfw
   lodepng
 )
+
+
 
