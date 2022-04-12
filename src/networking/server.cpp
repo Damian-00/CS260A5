@@ -52,6 +52,7 @@ namespace CS260
 	void Server::Tick()
 	{
 		// Handle all the receive packets
+		ReceivePackets();
 		
 
 		// TOOD: We may start the game with less than 4 players
@@ -83,7 +84,8 @@ namespace CS260
 		poll.fd = mSocket;
 		poll.events = POLLIN;
 
-		if (WSAPoll(&poll, 1, timeout) > 0)
+		// TODO: Handle timeout 
+		while (WSAPoll(&poll, 1, timeout) > 0)
 		{
 			if (poll.revents & POLLERR)
 			{
@@ -119,7 +121,7 @@ namespace CS260
 		case Packet_Types::SYN:
 		{
 			SYNACKPacket SYNACKpacket;
-			SYNACKpacket.mPlayerID = mClients.size();
+			SYNACKpacket.mPlayerID = rand() % 255;
 			mProtocol.SendPacket(Packet_Types::SYNACK, &SYNACKpacket, &senderAddress);
 		}			
 			break;

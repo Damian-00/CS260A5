@@ -6,7 +6,8 @@
 
 namespace CS260 
 {
-	Protocol::Protocol()
+	Protocol::Protocol():
+		mSocket(0)
 	{
 		// Initialize the networking library
 		NetworkCreate();
@@ -48,13 +49,13 @@ namespace CS260
 		int received;
 
 		if (_addr){ // we dont  know who we are receiving from
-			int addr_size = 0;
+			int addr_size = sizeof(*_addr);
 			// TODO: Error checking
-			received = recvfrom(mSocket, mBuffer.data(), sizeof(mBuffer), 0, _addr, &addr_size);
+			received = recvfrom(mSocket, mBuffer.data(), mBuffer.size(), 0, _addr, &addr_size);
 		}
 		else { // we do know
 			// TODO: Error checking
-			received = recv(mSocket, mBuffer.data(), sizeof(mBuffer), 0);
+			received = recv(mSocket, mBuffer.data(), mBuffer.size(), 0);
 		}
 
 		//cast the header message
@@ -137,11 +138,11 @@ namespace CS260
 			break;
 		case Packet_Types::SYN:
 			packetSize = sizeof(SYNPacket);
-			needsACK = true;
+			needsACK = false;
 			break;
 		case Packet_Types::SYNACK:
 			packetSize = sizeof(SYNACKPacket);
-			needsACK = true;
+			needsACK = false;
 			break;
 		}
 		

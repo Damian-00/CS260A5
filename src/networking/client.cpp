@@ -181,17 +181,35 @@ namespace CS260
 	{
 		PrintMessage("[CLIENT] Sending connection request SYN ");
 
-		mProtocol.SendPacket(Packet_Types::SYN, 0, 0);
+		SYNPacket packet;
+		mProtocol.SendPacket(Packet_Types::SYN, &packet);
 		
 		return true;
 	}
 
 	void Client::ReceiveMessages()
 	{
-		ProtocolPacket packet;
-		unsigned size = sizeof(ProtocolPacket);
-		Packet_Types type;
-		mProtocol.RecievePacket(&packet, &size, &type);
+		WSAPOLLFD poll;
+		poll.fd = mSocket;
+		poll.events = POLLIN;
+
+		// TODO: Handle timeout 
+		while(WSAPoll(&poll, 1, timeout) > 0)
+		{
+			if (poll.revents & POLLERR)
+			{
+				PrintError("Polling receiving players information");
+			}
+			else
+			{
+				ProtocolPacket packet;
+				unsigned size = sizeof(ProtocolPacket);
+				Packet_Types type;
+				mProtocol.RecievePacket(&packet, &size, &type);
+				HandleReceivedMessage(packet, type);				
+			}
+		}
+
 	}
 
 	void Client::HandleReceivedMessage(ProtocolPacket& packet, Packet_Types type)
