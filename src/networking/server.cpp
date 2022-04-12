@@ -12,9 +12,6 @@ namespace CS260
 	Server::Server(bool verbose, const std::string& ip_address, uint16_t port) :
 	mVerbose(verbose)
 	{
-		// Initialize the networking library
-		NetworkCreate();
-
 		// Create UDP socket for the Server
 		mSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
@@ -43,12 +40,13 @@ namespace CS260
 			PrintMessage("Bound socket.");
 
 		SetSocketBlocking(mSocket, false);
+
+		mProtocol.SetSocket(mSocket);
 	}
 
 	Server::~Server()
 	{
 		closesocket(mSocket);
-		NetworkDestroy();
 	}
 
 	void Server::Tick()

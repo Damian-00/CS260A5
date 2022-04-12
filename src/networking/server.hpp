@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 
 #include <vector>
+#include "protocol.hpp"
 
 namespace CS260
 {
@@ -20,6 +21,7 @@ namespace CS260
 		SOCKET mSocket;
 		sockaddr_in mEndpoint;
 		std::vector<ClientInfo> mClients;
+		Protocol mProtocol;
 
 
 	public:
