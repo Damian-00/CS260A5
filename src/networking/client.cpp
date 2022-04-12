@@ -66,9 +66,9 @@ namespace CS260
 
 	void Client::Tick()
 	{
-		ReceiveMessages();
 		//// TODO: Reset the counter properly
-		//mNewPlayersOnFrame.clear();
+		mNewPlayersOnFrame.clear();
+		ReceiveMessages();
 		////mPlayersState.clear();
 
 		//PlayerInfo packet;
