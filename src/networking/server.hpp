@@ -1,24 +1,26 @@
 #pragma once
-#include "networking.hpp"
+#include "protocol.hpp"
+
+#include <glm/glm.hpp>
 
 #include <vector>
+#include "protocol.hpp"
 
 namespace CS260
 {
 	struct ClientInfo
 	{
 		sockaddr mEndpoint;
-		unsigned char mID;
-		float pos[2];
+		PlayerInfo mPlayerInfo;
 	};
 	
 	class Server
 	{
+		Protocol mProtocol;
 		bool mVerbose;
 		SOCKET mSocket;
 		sockaddr_in mEndpoint;
 		std::vector<ClientInfo> mClients;
-
 
 	public:
 		/*	\fn Server
@@ -32,32 +34,23 @@ namespace CS260
 		~Server();
 
 		void Tick();
-
+		
 		int PlayerCount();
 
 	private:
 
+		void ReceivePackets();
+		
+		void HandleReceivedPacket(ProtocolPacket& packet, Packet_Types type, sockaddr& senderAddress);
+
 		void HandleNewClients();
 
-		/*	\fn ReceiveSYN
-		\brief	Receive SYN message
-		*/
-		bool ReceiveSYN(sockaddr& senderAddress, ConnectionPacket& packet);
-
-		/*	\fn SendSYNACK
-		\brief	Sends SYNACK message
-		*/
-		bool SendSYNACK(sockaddr& senderAddress, ConnectionPacket& packet);
-
-		/*	\fn ReceiveACKFromSYNACK
-		\brief	Receive ACK from SYNACK
-		*/
-		bool ReceiveACKFromSYNACK(sockaddr& senderAddress, ConnectionPacket& packet);
+		void ReceivePlayersInformation();
 
 		/*	\fn SendRST
 		\brief	Sends reset message
 		*/
-		bool SendRST(sockaddr& senderAddress, ConnectionPacket& packet);
+		bool SendRST(sockaddr& senderAddress);
 
 		void SendPlayerPositions();
 

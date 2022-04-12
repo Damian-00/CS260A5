@@ -27,7 +27,15 @@ void game::create(bool is_server, const std::string& address, uint16_t port, boo
 {
     // Window
     m_window = new engine::window();
-    m_window->create(1270, 780, "asteroids");
+    if (!is_server) {
+
+        m_window->create(1270, 780, "Asteroids Client");
+    }
+    else {
+
+        m_window->create(1270, 780, "Asteroids Server");
+
+    }
 
     // Assets
     m_default_shader = engine::shader_default_create();

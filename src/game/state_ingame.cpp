@@ -256,8 +256,8 @@ void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port,
     sAstCreationTime = game::instance().game_time();
 
     // generate the initial asteroid
-    for (uint32_t i = 0; i < sAstNum; i++)
-        astCreate(0);
+    //for (uint32_t i = 0; i < sAstNum; i++)
+    //    astCreate(0);
 
     // reset the score and the number of ship
     sScore      = 0;
@@ -399,7 +399,7 @@ void GameStatePlayUpdate(void)
         sAstCreationTime = game::instance().game_time();
 
         // create an asteroid
-        astCreate(0);
+        //astCreate(0);
     }
 
     // ===============
@@ -809,16 +809,32 @@ void GameStatePlayUpdate(void)
             // We added a new player
 			if(server->PlayerCount() > mRemoteShips.size())
             {
-				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (mRemoteShips.size()), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, 0, 0, 0.0f, true)});
+                vec2 pos{ 20 * mRemoteShips.size(), 0 };
+				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (mRemoteShips.size()), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true)});
             }
         }		
         else
         {
+			if(mRemoteShips.size() >= 1 )
+                client->SendPlayerInfo(spShip->posCurr,spShip->dirCurr);
             client->Tick();
 			
             for(auto& playerInfo : client->GetNewPlayers())
             {
-                mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, 0, 0, 0.0f, true) });
+                vec2 pos{ 20 * mRemoteShips.size(), 0 };
+                mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true) });
+            }
+            for (auto& playerInfo : client->GetPlayersInfo())
+            {
+                for (auto& ship : mRemoteShips)
+                {
+                    if (ship.mPlayerID == playerInfo.mID)
+                    {
+                        ship.mShipInstance->posCurr.x = playerInfo.pos[0];
+                        ship.mShipInstance->posCurr.y = playerInfo.pos[1];
+                        ship.mShipInstance->dirCurr = playerInfo.rot;
+                    }
+                }
             }
         }		
     }

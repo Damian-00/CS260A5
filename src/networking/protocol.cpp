@@ -1,70 +1,43 @@
-#include <array>
 #include "protocol.hpp"
+
 #include "networking.hpp"
 
+#include "utils.hpp"
 
-namespace CS260 {
-	Protocol::Protocol()
+namespace CS260 
+{
+	Protocol::Protocol():
+		mSocket(0)
 	{
-		mSequenceNumber = 0;
-		mSocket = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-
-		//error checking
-		if (mSocket == SOCKET_ERROR) {
-
-			int error = ::WSAGetLastError();
-			if (error != WSAEWOULDBLOCK) {
-				throw(std::exception("Unable to create client socket"));
-			}
-		}
-
-		//set socket non blocking
-		unsigned long nonblocking = 1;
-		ioctlsocket(mSocket, FIONBIO, &nonblocking);
+		// Initialize the networking library
+		NetworkCreate();
+		mSequenceNumber = rand() % now_ns() + 1;
 	}
 
-	void Protocol::SendPacket(Packet_Types _type, void* _packet, unsigned _size , const sockaddr* _addr)
+	Protocol::~Protocol()
 	{
-
+		NetworkDestroy();
+	}
+	void Protocol::SendPacket(Packet_Types _type, void* _packet, const sockaddr* _addr)
+	{
 		std::array<char, 8192 > mBuffer{};
 
-		PacketHeader mHeader{ mSequenceNumber , 0 , true, _type };
+		bool needsAck = false;
+		unsigned mPacketSize = GetTypeSize(_type, &needsAck);
+		
+		PacketHeader mHeader{ mSequenceNumber , 0, needsAck, _type };
 		mSequenceNumber++;
 
 		memcpy(mBuffer.data(), &mHeader, sizeof(PacketHeader));
-
-		size_t mPacketSize = 0;
-
-		switch (_type) {
-		case Packet_Types::VoidPacket:
-			mPacketSize = 0;
-			break;
-		case Packet_Types::ObjectCreation:
-			mPacketSize = sizeof(ObjectCreationPacket);
-			break;
-		case Packet_Types::ObjectDestruction:
-			mPacketSize = sizeof(ObjectDestructionPacket);
-			break;
-		case Packet_Types::ObjectUpdate:
-			mPacketSize = sizeof(ObjectUpdatePacket);
-			break;
-		case Packet_Types::ShipPacket:
-			mPacketSize = sizeof(ShipUpdatePacket);
-			break;
-		}
-
 		memcpy(mBuffer.data() + sizeof(PacketHeader), _packet, mPacketSize);
 
-		if (_addr){
-		
+		if (_addr)
 			sendto(mSocket, mBuffer.data(), sizeof(PacketHeader) + mPacketSize, 0, _addr, sizeof(sockaddr));
-		}
-		else {
-
+		else 
 			send(mSocket, mBuffer.data(), sizeof(PacketHeader) + mPacketSize, 0); 
-		}
 
-		
+		if (needsAck)
+			mUnacknowledgedMessages.push_back(mBuffer);		
 	}
 
 	void Protocol::RecievePacket(void* _payload, unsigned *_size, Packet_Types* _type, sockaddr * _addr)
@@ -75,61 +48,112 @@ namespace CS260 {
 		int received;
 
 		if (_addr){ // we dont  know who we are receiving from
-			
-			int addr_size = 0;
-			received = recvfrom(mSocket, mBuffer.data(), sizeof(mBuffer), 0, _addr, &addr_size);
-
+			int addr_size = sizeof(*_addr);
+			// TODO: Error checking
+			received = recvfrom(mSocket, mBuffer.data(), mBuffer.size(), 0, _addr, &addr_size);
 		}
 		else { // we do know
-
-			received = recv(mSocket, mBuffer.data(), sizeof(mBuffer), 0);
-
+			// TODO: Error checking
+			received = recv(mSocket, mBuffer.data(), mBuffer.size(), 0);
 		}
 
 		//cast the header message
-		if (received > 0) {
-
+		if (received > 0)
+		{
 			PacketHeader mHeader;
 			memcpy(&mHeader, mBuffer.data(), sizeof(mHeader));
 
+			//in case we need to acknowledge the packet
 			if (mHeader.mNeedsAcknowledgement) {
-				
-				mMessagesToAck.push(mHeader.mSeq); //keeping track of the messages we need to ack
+
+				//create the acknowledgement void packet
+				PacketHeader mAckHeader = { 0 , mHeader.mSeq , false, Packet_Types::VoidPacket };
+				std::array<char, 8192> ackPack;
+				memcpy(&ackPack, &mAckHeader, sizeof(mAckHeader));
+
+
+				if (_addr) {
+
+					int sent = sendto(mSocket, ackPack.data(), sizeof(mAckHeader), 0, _addr, sizeof(sockaddr));
+					std::cout << WSAGetLastError();
+
+				}
+				else {
+
+					int sent = send(mSocket, mBuffer.data(), sizeof(PacketHeader), 0);
+				}
 			}
-			
+
+
+			//in case it was an acknowledgement{
+			if (mHeader.mAck != 0) {
+
+				auto erased = std::erase_if(mUnacknowledgedMessages, [&](std::array<char, 8192> a) {
+
+					PacketHeader mThisHeader;
+					memcpy(&mThisHeader, a.data(), sizeof(mThisHeader));
+
+					if (mHeader.mAck == mThisHeader.mAck) {
+						return true; //we found the element we received the ack from
+					}
+
+					});
+
+			}
+
 			*_type = mHeader.mPackType;
 
-			unsigned mPacketSize = 0;
-
-			switch (mHeader.mPackType) {
-
-			case Packet_Types::VoidPacket:
-				mPacketSize = 0;
-				break;
-			case Packet_Types::ObjectCreation:
-				mPacketSize = sizeof(ObjectCreationPacket);
-				break;
-			case Packet_Types::ObjectDestruction:
-				mPacketSize = sizeof(ObjectDestructionPacket);
-				break;
-			case Packet_Types::ObjectUpdate:
-				mPacketSize = sizeof(ObjectUpdatePacket);
-				break;
-			case Packet_Types::ShipPacket:
-				mPacketSize = sizeof(ShipUpdatePacket);
-				break;
-			}
+			unsigned mPacketSize = GetTypeSize(mHeader.mPackType);
 
 			*_size = mPacketSize;
 			memcpy(_payload, mBuffer.data() + sizeof(PacketHeader), mPacketSize);
-
-
 		}
-
-
-
-
-
 	}
 
+	unsigned Protocol::GetTypeSize(Packet_Types type, bool* needsACKPtr)
+	{
+		unsigned packetSize = 0;
+		bool needsACK = false;
+		switch (type) 
+		{
+		case Packet_Types::VoidPacket:
+			packetSize = 0;
+			break;
+		case Packet_Types::ObjectCreation:
+			packetSize = sizeof(ObjectCreationPacket);
+			needsACK = true;
+			break;
+		case Packet_Types::ObjectDestruction:
+			packetSize = sizeof(ObjectDestructionPacket);
+			needsACK = true;
+			break;
+		case Packet_Types::ObjectUpdate:
+			packetSize = sizeof(ObjectUpdatePacket);
+			needsACK = false;
+			break;
+		case Packet_Types::ShipPacket:
+			packetSize = sizeof(ShipUpdatePacket);
+			needsACK = false;
+			break;
+		case Packet_Types::SYN:
+			packetSize = sizeof(SYNPacket);
+			needsACK = false;
+			break;
+		case Packet_Types::SYNACK:
+			packetSize = sizeof(SYNACKPacket);
+			needsACK = false;
+			break;
+		}
+		
+		if(needsACKPtr)
+			*needsACKPtr = needsACK;
+		
+		return packetSize;
+	}
+
+	void Protocol::SetSocket(SOCKET _s)
+	{
+		mSocket = _s;
+	}
+	
 }

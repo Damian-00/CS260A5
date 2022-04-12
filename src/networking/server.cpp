@@ -1,6 +1,9 @@
 #include "server.hpp"
 #include "server.hpp"
 #include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
 
 #include "utils.hpp"
 
@@ -9,9 +12,6 @@ namespace CS260
 	Server::Server(bool verbose, const std::string& ip_address, uint16_t port) :
 	mVerbose(verbose)
 	{
-		// Initialize the networking library
-		NetworkCreate();
-
 		// Create UDP socket for the Server
 		mSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
@@ -40,28 +40,34 @@ namespace CS260
 			PrintMessage("Bound socket.");
 
 		SetSocketBlocking(mSocket, false);
+
+		mProtocol.SetSocket(mSocket);
 	}
 
 	Server::~Server()
 	{
 		closesocket(mSocket);
-		NetworkDestroy();
 	}
 
 	void Server::Tick()
 	{
+		// Handle all the receive packets
+		ReceivePackets();
+		
+
 		// TOOD: We may start the game with less than 4 players
 		// For the moment, wait untill there are 4 players connected
-		if (mClients.size() < 2)
-		{
-			HandleNewClients();
-		}
-		// Handle game state
-		else
-		{ 
-			// Send player positions to all clients
-			
-		}
+		//if (mClients.size() < 2)
+		//{
+		//	HandleNewClients();
+		//}
+		//// Handle game state
+		//else
+		//{ 
+		//	// Send player positions to all clients
+		//	ReceivePlayersInformation();
+		//	SendPlayerPositions();
+		//}
 	}
 
 	int Server::PlayerCount()
@@ -69,15 +75,75 @@ namespace CS260
 		return mClients.size();
 	}
 
+	void Server::ReceivePackets()
+	{
+		sockaddr senderAddres;
+		socklen_t size = sizeof(senderAddres);
+		PlayerInfo packet;
+		WSAPOLLFD poll;
+		poll.fd = mSocket;
+		poll.events = POLLIN;
+
+		// TODO: Handle timeout 
+		while (WSAPoll(&poll, 1, timeout) > 0)
+		{
+			if (poll.revents & POLLERR)
+			{
+				PrintError("Polling receiving players information");
+			}
+			else
+			{
+				ProtocolPacket packet{};
+				Packet_Types type{};
+				sockaddr senderAddress;
+				unsigned size = 0;
+
+				mProtocol.RecievePacket(&packet, &size, &type, &senderAddres);
+				HandleReceivedPacket(packet, type, senderAddres);
+			}
+		}
+	}
+
+	void Server::HandleReceivedPacket(ProtocolPacket& packet, Packet_Types type, sockaddr& senderAddress)
+	{
+		switch (type) 
+		{
+		case Packet_Types::VoidPacket:
+			break;
+		case Packet_Types::ObjectCreation:
+			break;
+		case Packet_Types::ObjectDestruction:
+			break;
+		case Packet_Types::ObjectUpdate:
+			break;
+		case Packet_Types::ShipPacket:
+			break;
+		case Packet_Types::SYN:
+		{
+			SYNACKPacket SYNACKpacket;
+			SYNACKpacket.mPlayerID = rand() % 255;
+			mProtocol.SendPacket(Packet_Types::SYNACK, &SYNACKpacket, &senderAddress);
+		}			
+			break;
+		case Packet_Types::SYNACK:
+		{
+			// Copy the payload into a more manageable structure
+			SYNACKPacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			mClients.push_back(ClientInfo{ senderAddress, PlayerInfo{receivedPacket.mPlayerID, {0,0}, 0 } });
+			break;
+		}
+		}
+	}
+
 	void Server::HandleNewClients()
 	{
 		PrintMessage("Accepting new client");
 
-		ConnectionPacket packet;
 		sockaddr senderAddress;
-		if(ReceiveSYN(senderAddress, packet))
-			if (SendSYNACK(senderAddress, packet))
-				if (ReceiveACKFromSYNACK(senderAddress, packet))
+		//if(ReceiveSYN(senderAddress, packet))
+		//	if (SendSYNACK(senderAddress, packet))
+		//		if (ReceiveACKFromSYNACK(senderAddress, packet))
 				{
 					NewPlayerPacket newPlayer;
 					newPlayer.mCode = NEWPLAYER;
@@ -88,176 +154,75 @@ namespace CS260
 						::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket),0, &client.mEndpoint, sizeof(client.mEndpoint));
 						// TODO: Handle error checking
 					}
+					// TODO: Notify the new client of the previus clients relialably
+					for (auto& client : mClients)
+					{
+						newPlayer.mID = client.mPlayerInfo.mID;
+						::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket), 0, &senderAddress, sizeof(senderAddress));
+						// TODO: Handle error checking
+					}
 					mClients.push_back(ClientInfo{ senderAddress, static_cast<unsigned char>(mClients.size())});
 				}
 	}
 
-	bool Server::ReceiveSYN(sockaddr& senderAddress, ConnectionPacket& packet)
+	void Server::ReceivePlayersInformation()
 	{
+		sockaddr senderAddres;
+		socklen_t size = sizeof(senderAddres);
+		PlayerInfo packet;
 		WSAPOLLFD poll;
 		poll.fd = mSocket;
 		poll.events = POLLIN;
 		
-		socklen_t size = sizeof(senderAddress);
-
 		if (WSAPoll(&poll, 1, timeout) > 0)
 		{
 			if (poll.revents & POLLERR)
 			{
-				PrintError("Polling connection message");
-				return false;
+				PrintError("Polling receiving players information");
 			}
-			else if (poll.revents & (POLLIN | POLLHUP))
+			else
 			{
-				// Receive SYN
-				int bytesReceived = ::recvfrom(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacketHeader), 0, &senderAddress, &size);
-
-				// Handle error
+				// Receive ACK of SYNACK
+				int bytesReceived = ::recvfrom(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0, &senderAddres, &size);
 				if (bytesReceived == SOCKET_ERROR)
 				{
-					PrintError("Receiving SYN accepting new client");
-					return false;
+					PrintError("Receiving message.");
 				}
-				// Handle receiving a message
-				else
+				// Make sure it is an ACK code
+				///if (packet.mCode & PLAYERINFO)
 				{
-					// Make sure this is a SYN code
-					if (packet.GetCode() & SYNCODE)
+					for (auto& client : mClients)
 					{
-						PrintMessage("Received SYN code");
-						return true;
-					}
-					// We were told to reset connection establishment
-					else if (packet.GetCode() & RSTCODE)
-					{
-						PrintMessage("Reseting connection.");
-						return false;
-					}
-					// If not, this message needs a reset
-					// Probably received a message from an old client
-					// Anyway, send a reset message in case there are two clients trying to connect
-					else
-					{
-						PrintMessage("Received wrong code while connecting");
-						SendRST(senderAddress, packet);
-						return false;
-					}
-				}
-			}
-		}
-		return false;
-	}
-
-	bool Server::SendSYNACK(sockaddr& senderAddress, ConnectionPacket& packet)
-	{
-		const int size = sizeof(sockaddr);
-
-		// We will only send the SYNACKCODE and the ACK number
-		// Which are included by themselsves, so we do not add anything
-		packet.AttachACK(packet.GetSequence() + packet.GetACK());
-		
-		packet.SetSequence(now_ns());		
-
-		// Change the type of message
-		packet.SetCode(SYNACKCODE);
-
-		// We only need to send the header as it will contatin the code and the required ack
-		int bytesSent = ::sendto(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacket), 0, &senderAddress, size);
-
-		// Handle errors
-		if (bytesSent == SOCKET_ERROR)
-		{
-			PrintError("Sending SYN ACK accepting new client");
-			return false;
-		}
-		else
-		{
-			PrintMessage("Sending SYNACK with sequence " + std::to_string(packet.GetSequence()));
-			return true;
-		}
-	}
-
-	bool Server::ReceiveACKFromSYNACK(sockaddr& senderAddress, ConnectionPacket& packet)
-	{
-		unsigned expectedACK = packet.GetExpectedACK();
-		auto clock = now();
-		socklen_t size = sizeof(senderAddress);
-		do
-		{
-			WSAPOLLFD poll;
-			poll.fd = mSocket;
-			poll.events = POLLIN;
-			if (WSAPoll(&poll, 1, timeout) > 0)
-			{
-				if (poll.revents & POLLERR)
-				{
-					PrintError("Polling receive ACK from SYNACK");
-					return false;
-				}
-				else
-				{
-					PrintMessage("Waiting for ACK to SYNACK expected ACK " + std::to_string(expectedACK));
-					// Receive ACK of SYNACK
-					int bytesReceived = ::recvfrom(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacketHeader), 0, &senderAddress, &size);
-					if (bytesReceived == SOCKET_ERROR)
-					{
-						PrintError("Receiving ACK from SYNACK");
-						return false;
-					}
-					// Make sure it is an ACK code
-					if (packet.GetCode() & ACKCODE)
-					{
-						unsigned packetACK = packet.GetACK();
-						PrintMessage("Received ACK to SYNACK " + std::to_string(packetACK));
-
-						// Make sure the current ack is the expected one
-						if (packetACK == expectedACK)
+						if (client.mPlayerInfo.mID == packet.mID)
 						{
-							PrintMessage("Client connected.");							
-							return true;
+							client.mPlayerInfo.pos[0] = packet.pos[0];
+							client.mPlayerInfo.pos[1] = packet.pos[1];
+
+							client.mPlayerInfo.rot = packet.rot;
 						}
 					}
-					// RESET
-					else if (packet.GetCode() & RSTCODE)
-					{
-						PrintMessage("Received RST");
-						return false;
-					}
-					// We received any other type of message probably mixed from a previous client
-					else
-					{
-						PrintMessage("Received unknown type of message");
-						// Although this message is most likely to be ignored, send a reset request in case
-						// two clients are trying to connect at the same time
-						SendRST(senderAddress, packet);
-					}
 				}
 			}
-			// Timeout of 5 seconds
-		} while (ms_since(clock) < 5000);
-
-		// In case of timeout waiting for the ACK from SYNACK restart connection
-		PrintMessage("Timeout waiting for ACK from SYNACK");
-		SendRST(senderAddress, packet);
-		return false;
+		}
 	}
+
 
 	/*	\fn SendRST
 	\brief	Sends reset message
 	*/
-	bool Server::SendRST(sockaddr& senderAddress, ConnectionPacket& packet)
+	bool Server::SendRST(sockaddr& senderAddress)
 	{
-		packet.AttachACK(0);
-		packet.SetCode(RSTCODE);
-		int size = sizeof(senderAddress);
-		int bytesReceived = ::sendto(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0, &senderAddress, size);
-		if (bytesReceived == SOCKET_ERROR)
-		{
-			PrintError("Error sending RST");
-		}
-		else
-			PrintMessage("[SERVER] Sending RST correctly");
-
+		//packet.AttachACK(0);
+		//packet.SetCode(RSTCODE);
+		//int size = sizeof(senderAddress);
+		//int bytesReceived = ::sendto(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0, &senderAddress, size);
+		//if (bytesReceived == SOCKET_ERROR)
+		//{
+		//	PrintError("Error sending RST");
+		//}
+		//else
+		//	PrintMessage("[SERVER] Sending RST correctly");
+		//
 		return false;
 	}
 
@@ -265,22 +230,19 @@ namespace CS260
 	{
 		for (auto& senderClient : mClients)
 		{
-			//NewPlayerPacket currentPacket;
-			//currentPacket.pos[0] = senderClient.pos[0];
-			//currentPacket.pos[1] = senderClient.pos[1];
-			//currentPacket.mCode = 0;
-			//for (auto& receiverClient : mClients)
-			//{
-			//	// Avoid sending to the same client
-			//	if (senderClient.mID != receiverClient.mID)
-			//	{
-			//		auto bytesReceived = ::sendto(mSocket, reinterpret_cast<char*>( &currentPacket), sizeof(PlayerPacket), 0, &receiverClient.mEndpoint, sizeof(receiverClient.mEndpoint));
-			//		if(bytesReceived == SOCKET_ERROR)
-			//		{
-			//			// TODO: Handle error
-			//		}
-			//	}
-			//}
+			for (auto& receiverClient : mClients)
+			{
+				// Avoid sending to itself
+				if (senderClient.mPlayerInfo.mID != receiverClient.mPlayerInfo.mID)
+				{
+					//senderClient.mPlayerInfo.mCode = PLAYERINFO;
+					auto bytesReceived = ::sendto(mSocket, reinterpret_cast<char*>( &senderClient.mPlayerInfo), sizeof(PlayerInfo), 0, &receiverClient.mEndpoint, sizeof(receiverClient.mEndpoint));
+					if(bytesReceived == SOCKET_ERROR)
+					{
+						// TODO: Handle error
+					}
+				}
+			}
 		}
 	}
 
