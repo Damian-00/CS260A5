@@ -1,5 +1,6 @@
 #include "server.hpp"
 #include "server.hpp"
+#include "server.hpp"
 
 #include "utils.hpp"
 
@@ -48,6 +49,7 @@ namespace CS260
 
 	void Server::Tick()
 	{
+		mNewPlayersOnFrame.clear();
 		// Handle all the receive packets
 		ReceivePackets();
 		
@@ -70,6 +72,11 @@ namespace CS260
 	int Server::PlayerCount()
 	{
 		return mClients.size();
+	}
+
+	std::vector<NewPlayerPacket> Server::GetNewPlayers()
+	{
+		return mNewPlayersOnFrame;
 	}
 
 	std::vector<ClientInfo> Server::GetPlayersInfo()
@@ -137,6 +144,8 @@ namespace CS260
 			newPlayerPacket.mPlayerInfo.mID = receivedPacket.mPlayerID;
 			newPlayerPacket.mPlayerInfo.pos = { 0,0 };
 			newPlayerPacket.mPlayerInfo.rot = 0;
+			
+			mNewPlayersOnFrame.push_back(newPlayerPacket);
 			
 			for (auto& client : mClients)
 				mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &client.mEndpoint);

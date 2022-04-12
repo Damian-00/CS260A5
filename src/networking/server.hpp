@@ -22,6 +22,7 @@ namespace CS260
 		SOCKET mSocket;
 		sockaddr_in mEndpoint;
 		std::vector<ClientInfo> mClients;
+		std::vector<NewPlayerPacket> mNewPlayersOnFrame;
 
 	public:
 		/*	\fn Server
@@ -38,6 +39,8 @@ namespace CS260
 		
 		int PlayerCount();
 
+		std::vector<NewPlayerPacket> GetNewPlayers();
+		
 		std::vector<ClientInfo> GetPlayersInfo();
 
 	private:
