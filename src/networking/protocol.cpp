@@ -20,15 +20,14 @@ namespace CS260
 	}
 	void Protocol::SendPacket(Packet_Types _type, void* _packet, const sockaddr* _addr)
 	{
-
 		std::array<char, 8192 > mBuffer{};
 
-		PacketHeader mHeader{ mSequenceNumber , 0 , true, _type };
+		bool needsAck = false;
+		unsigned mPacketSize = GetTypeSize(_type, &needsAck);
+		
+		PacketHeader mHeader{ mSequenceNumber , 0, needsAck, _type };
 		mSequenceNumber++;
 
-		bool needsAck = false;
-		unsigned mPacketSize = GetTypeSize(mHeader.mPackType, &needsAck);
-		
 		memcpy(mBuffer.data(), &mHeader, sizeof(PacketHeader));
 		memcpy(mBuffer.data() + sizeof(PacketHeader), _packet, mPacketSize);
 

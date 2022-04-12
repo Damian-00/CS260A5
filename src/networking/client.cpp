@@ -14,7 +14,8 @@ namespace CS260
 	*/
 	Client::Client(const std::string& ip_address, uint16_t port, bool verbose)
 		:mVerbose(verbose),
-		mSocket(0)
+		mSocket(0),
+		mConnected(false)
 	{	
 
 		// Create UDP socket for the client
@@ -71,59 +72,59 @@ namespace CS260
 
 	void Client::Tick()
 	{
-		// TODO: Reset the counter properly
-		mNewPlayersOnFrame.clear();
-		//mPlayersState.clear();
+		//// TODO: Reset the counter properly
+		//mNewPlayersOnFrame.clear();
+		////mPlayersState.clear();
 
-		PlayerInfo packet;
-		WSAPOLLFD poll;
-		poll.fd = mSocket;
-		poll.events = POLLIN;
+		//PlayerInfo packet;
+		//WSAPOLLFD poll;
+		//poll.fd = mSocket;
+		//poll.events = POLLIN;
 
-		while (WSAPoll(&poll, 1, timeout) > 0)
-		{
-			if (poll.revents & POLLERR)
-			{
-				PrintError("Error polling message");
-			}
-			else if (poll.revents & (POLLIN | POLLHUP))
-			{
-				int bytesReceived = ::recv(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0);
+		//while (WSAPoll(&poll, 1, timeout) > 0)
+		//{
+		//	if (poll.revents & POLLERR)
+		//	{
+		//		PrintError("Error polling message");
+		//	}
+		//	else if (poll.revents & (POLLIN | POLLHUP))
+		//	{
+		//		int bytesReceived = ::recv(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0);
 
-				if (bytesReceived == SOCKET_ERROR)
-				{
-					PrintError("Error receiving message");
-				}
-				else
-				{
-					// This should be handled playerpacket
-					//if (packet.mCode & NEWPLAYER)
-					//{
-					//	NewPlayerPacket newPacket;
-					//	newPacket.mCode = packet.mCode;
-					//	newPacket.mID = packet.mID;
-					//	mNewPlayersOnFrame.push_back(newPacket);
-					//
-					//	PlayerInfo newPlayerPacket;
-					//	newPlayerPacket.mID = packet.mID;
-					//	mPlayersState.push_back(newPlayerPacket);
-					//}
-					//// This should be handled playerpacket
-					//if (packet.mCode & PLAYERINFO)
-					//{
-					//	for (auto& state : mPlayersState)
-					//	{
-					//		if (state.mID = packet.mID)
-					//		{
-					//			state.pos[0] = packet.pos[0];
-					//			state.pos[1] = packet.pos[1];
-					//			state.rot = packet.rot;
-					//		}
-					//	}
-					//}
-				}
-			}
-		}
+		//		if (bytesReceived == SOCKET_ERROR)
+		//		{
+		//			PrintError("Error receiving message");
+		//		}
+		//		else
+		//		{
+		//			// This should be handled playerpacket
+		//			//if (packet.mCode & NEWPLAYER)
+		//			//{
+		//			//	NewPlayerPacket newPacket;
+		//			//	newPacket.mCode = packet.mCode;
+		//			//	newPacket.mID = packet.mID;
+		//			//	mNewPlayersOnFrame.push_back(newPacket);
+		//			//
+		//			//	PlayerInfo newPlayerPacket;
+		//			//	newPlayerPacket.mID = packet.mID;
+		//			//	mPlayersState.push_back(newPlayerPacket);
+		//			//}
+		//			//// This should be handled playerpacket
+		//			//if (packet.mCode & PLAYERINFO)
+		//			//{
+		//			//	for (auto& state : mPlayersState)
+		//			//	{
+		//			//		if (state.mID = packet.mID)
+		//			//		{
+		//			//			state.pos[0] = packet.pos[0];
+		//			//			state.pos[1] = packet.pos[1];
+		//			//			state.rot = packet.rot;
+		//			//		}
+		//			//	}
+		//			//}
+		//		}
+		//	}
+		//}
 	}
 
 	void Client::SendPlayerInfo(glm::vec2 pos, float rotation)
@@ -160,7 +161,8 @@ namespace CS260
 		{
 			if (SendSYN())
 			{
-				ReceiveMessages();
+				while(!mConnected)
+					ReceiveMessages();
 			}
 			else
 			{
@@ -236,6 +238,7 @@ namespace CS260
 			mID = receivedPacket.mPlayerID;
 			// TODO: Send connection ACK properly
 			mProtocol.SendPacket(SYNACK, &receivedPacket, 0);
+			mConnected = true;
 		}
 			break;
 		}

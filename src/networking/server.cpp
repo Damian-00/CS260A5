@@ -57,17 +57,17 @@ namespace CS260
 
 		// TOOD: We may start the game with less than 4 players
 		// For the moment, wait untill there are 4 players connected
-		if (mClients.size() < 2)
-		{
-			HandleNewClients();
-		}
-		// Handle game state
-		else
-		{ 
-			// Send player positions to all clients
-			ReceivePlayersInformation();
-			SendPlayerPositions();
-		}
+		//if (mClients.size() < 2)
+		//{
+		//	HandleNewClients();
+		//}
+		//// Handle game state
+		//else
+		//{ 
+		//	// Send player positions to all clients
+		//	ReceivePlayersInformation();
+		//	SendPlayerPositions();
+		//}
 	}
 
 	int Server::PlayerCount()
