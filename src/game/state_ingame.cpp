@@ -807,10 +807,9 @@ void GameStatePlayUpdate(void)
         {
             server->Tick();
             // We added a new player
-			if(server->PlayerCount() > mRemoteShips.size())
+            for (auto& playerInfo : server->GetNewPlayers())
             {
-                vec2 pos{ 20 * mRemoteShips.size(), 0 };
-				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (mRemoteShips.size()), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true)});
+				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true)});
             }
             for (auto& player : server->GetPlayersInfo())
             {
