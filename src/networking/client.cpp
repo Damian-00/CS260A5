@@ -11,9 +11,7 @@ namespace CS260
 	Client::Client(const std::string& ip_address, uint16_t port, bool verbose)
 		:mVerbose(verbose),
 		mSocket(0)
-	{		
-		// Initialize the networking library.
-		NetworkCreate();
+	{	
 
 		// Create UDP socket for the client
 		mSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -48,6 +46,7 @@ namespace CS260
 
 		SetSocketBlocking(mSocket, false);
 
+		mProtocol.SetSocket(mSocket);
 		if (ConnectToServer())
 		{
 			PrintMessage("Connected to server correctly.");
@@ -63,7 +62,7 @@ namespace CS260
 	{
 		DisconnectFromServer();
 		closesocket(mSocket);
-		NetworkDestroy();
+	
 	}
 
 	void Client::Tick()

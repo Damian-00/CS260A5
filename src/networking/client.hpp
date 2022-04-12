@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "networking.hpp"
+#include "protocol.hpp"
 
 namespace CS260
 {
@@ -22,6 +23,7 @@ namespace CS260
 		bool mVerbose;
 		SOCKET mSocket;
 		std::vector<NewPlayerPacket> mNewPlayersOnFrame;
+		Protocol mProtocol;
 		
 	public:
 
