@@ -21,8 +21,6 @@ namespace CS260
 		SOCKET mSocket;
 		sockaddr_in mEndpoint;
 		std::vector<ClientInfo> mClients;
-		Protocol mProtocol;
-
 
 	public:
 		/*	\fn Server

@@ -120,7 +120,7 @@ namespace CS260
 		{
 			SYNACKPacket SYNACKpacket;
 			SYNACKpacket.mPlayerID = mClients.size();
-			mProtocol.SendPacket(Packet_Types::SYNACK, &SYNACKpacket, 0, &senderAddress);
+			mProtocol.SendPacket(Packet_Types::SYNACK, &SYNACKpacket, &senderAddress);
 		}			
 			break;
 		case Packet_Types::SYNACK:
