@@ -812,11 +812,13 @@ void GameStatePlayUpdate(void)
                 vec2 pos{ 20 * mRemoteShips.size(), 0 };
 				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (mRemoteShips.size()), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true)});
             }
+
+            
         }		
         else
         {
-			if(mRemoteShips.size() >= 1 )
-                client->SendPlayerInfo(spShip->posCurr,spShip->dirCurr);
+			if(client->Connected())
+                client->SendPlayerInfo(spShip->posCurr,spShip->velCurr, spShip->dirCurr);
             client->Tick();
 			
             for(auto& playerInfo : client->GetNewPlayers())

@@ -33,8 +33,7 @@ namespace CS260 {
 	};
 	struct ProtocolPacket
 	{
-		PacketHeader mHeader;
-		std::array<char, MAX_BUFFER_SIZE - sizeof(PacketHeader)> mBuffer;
+		std::array<char, MAX_BUFFER_SIZE > mBuffer;
 	};
 
 	struct ObjectUpdatePacket{
@@ -50,12 +49,12 @@ namespace CS260 {
 		unsigned char mID;
 		glm::vec2 pos;
 		float rot;
+		glm::vec2 vel;
 	};
 	struct ShipUpdatePacket
 	{
 		PlayerInfo mPlayerInfo;
-		glm::vec2 mShipVel;
-		glm::vec2 mShipAcc;
+
 	};
 
 	struct ObjectCreationPacket {
