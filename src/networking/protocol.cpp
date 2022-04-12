@@ -143,6 +143,10 @@ namespace CS260
 			packetSize = sizeof(SYNACKPacket);
 			needsACK = false;
 			break;
+		case Packet_Types::NewPlayer:
+			packetSize = sizeof(NewPlayerPacket);
+			needsACK = true;
+			break;
 		}
 		
 		if(needsACKPtr)

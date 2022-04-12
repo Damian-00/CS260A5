@@ -34,29 +34,6 @@ using socklen_t = int; // Trick for accept
 namespace CS260 
 {
 	const int timeout = 0;
-	const unsigned char NEWPLAYER = 0b1;
-	const unsigned char PLAYERINFO = 0b10;
-	const unsigned char SYNCODE = 0b1;
-	const unsigned char SYNACKCODE = 0b10;
-	const unsigned char LASTACKCODE = 0b100;
-	const unsigned char ACKCODE = 0b1000;
-	const unsigned char FIN1CODE = 0b10000;
-	const unsigned char FIN2CODE = 0b100000;
-	const unsigned char RSTCODE = 0b1000000;
-
-	struct NewPlayerPacket
-	{
-		unsigned char mID;
-		unsigned char mCode;
-	};
-
-	struct ConnectionPacketHeader
-	{
-		unsigned char mSequence;
-		unsigned char mACK;
-		unsigned char mCode;
-		unsigned char mID;
-	};
 
     /**
      * @brief
