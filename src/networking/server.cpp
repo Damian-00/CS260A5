@@ -1,5 +1,4 @@
 #include "server.hpp"
-#include "server.hpp"
 
 #include "utils.hpp"
 
@@ -119,6 +118,15 @@ namespace CS260
 		case Packet_Types::ObjectUpdate:
 			break;
 		case Packet_Types::ShipPacket:
+
+			for (auto& i : mClients) {
+				if (ShipUpdatePacket * mCastedPacket = reinterpret_cast<ShipUpdatePacket*>(&packet)) {
+					if (i.mPlayerInfo.mID == mCastedPacket->mPlayerInfo.mID) {
+						i.mPlayerInfo = mCastedPacket->mPlayerInfo;
+					}
+				}
+			}
+
 			break;
 		case Packet_Types::SYN:
 		{

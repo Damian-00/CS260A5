@@ -50,6 +50,7 @@ namespace CS260 {
 		unsigned char mID;
 		glm::vec2 pos;
 		float rot;
+		glm::vec2 vel;
 	};
 
 	struct NewPlayerPacket
@@ -59,8 +60,7 @@ namespace CS260 {
 	struct ShipUpdatePacket
 	{
 		PlayerInfo mPlayerInfo;
-		glm::vec2 mShipVel;
-		glm::vec2 mShipAcc;
+
 	};
 
 	struct ObjectCreationPacket {

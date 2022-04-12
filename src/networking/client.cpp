@@ -122,18 +122,17 @@ namespace CS260
 		//}
 	}
 
-	void Client::SendPlayerInfo(glm::vec2 pos, float rotation)
+	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation)
 	{
-		// TODO: Remove from here
+		
 		{
-			PlayerInfo packet;
-			packet.mID = mID;
-			packet.pos[0] = pos.x;
-			packet.pos[1] = pos.y;
-			packet.rot = rotation;
+			ShipUpdatePacket myShipPacket;
+			myShipPacket.mPlayerInfo.mID = mID;
+			myShipPacket.mPlayerInfo.pos = pos;
+			myShipPacket.mPlayerInfo.vel = vel;
+			myShipPacket.mPlayerInfo.rot = rotation;
 
-			// TODO: Handle error
-			::send(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0);
+			mProtocol.SendPacket(Packet_Types::ShipPacket, &myShipPacket, nullptr);
 		}
 	}
 
@@ -381,5 +380,12 @@ namespace CS260
 	{
 		std::cerr << "[CLIENT] Error  " << std::to_string(WSAGetLastError()) << " at " << msg << std::endl;
 	}
+
+	bool Client::Connected()
+	{
+		return mConnected;
+	}
+
+
 
 }

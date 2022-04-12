@@ -43,11 +43,14 @@ namespace CS260
 
 		void Tick();
 
-		void SendPlayerInfo(glm::vec2  pos, float rotation);
+		void SendPlayerInfo(glm::vec2 pos, glm::vec2 vel, float rotation);
 
 		std::vector<NewPlayerPacket> GetNewPlayers();
 
 		std::vector<PlayerInfo> GetPlayersInfo();
+
+		bool Connected();
+
 
 	private:
 		/*	\fn ConnectToServer
@@ -77,5 +80,8 @@ namespace CS260
 		void PrintMessage(const std::string& msg);
 		
 		void PrintError(const std::string& msg);
+		
+
+		
 	};
 }

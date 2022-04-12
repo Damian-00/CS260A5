@@ -826,8 +826,8 @@ void GameStatePlayUpdate(void)
         }		
         else
         {
-			if(mRemoteShips.size() >= 1 )
-                client->SendPlayerInfo(spShip->posCurr,spShip->dirCurr);
+			if(client->Connected())
+                client->SendPlayerInfo(spShip->posCurr,spShip->velCurr, spShip->dirCurr);
             client->Tick();
 			
             for(auto& playerInfo : client->GetNewPlayers())
