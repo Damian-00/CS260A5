@@ -10,18 +10,24 @@
 	Implementation for all the functionalities required by the client.
 *******************************************************************************/
 #pragma once
+
+#include "protocol.hpp"
+
 #include <string>
 #include <vector>
-
-#include "networking.hpp"
+#include <glm/glm.hpp>
 
 namespace CS260
 {
 	class Client
 	{
+		Protocol mProtocol;
+		unsigned char mID;
+		bool mConnected;
 		bool mVerbose;
 		SOCKET mSocket;
 		std::vector<NewPlayerPacket> mNewPlayersOnFrame;
+		std::vector<PlayerInfo> mPlayersState;
 		
 	public:
 
@@ -37,7 +43,11 @@ namespace CS260
 
 		void Tick();
 
+		void SendPlayerInfo(glm::vec2  pos, float rotation);
+
 		std::vector<NewPlayerPacket> GetNewPlayers();
+
+		std::vector<PlayerInfo> GetPlayersInfo();
 
 	private:
 		/*	\fn ConnectToServer
@@ -48,17 +58,16 @@ namespace CS260
 		/*	\fn SendSYN
 		\brief	Sends SYN message
 		*/
-		bool SendSYN(ConnectionPacket& packet);
-
-		/*	\fn ReceiveSYNACK
-		\brief	Receives SYNACK
-		*/
-		bool ReceiveSYNACK(ConnectionPacket& packet);
+		bool SendSYN();
+		
+		void ReceiveMessages();
+		
+		void HandleReceivedMessage(ProtocolPacket& packet, Packet_Types type);
 
 		/*	\fn SendRST
 		\brief	Sends a reset request
 		*/
-		void SendRST(ConnectionPacket& packet);
+		void SendRST();
 		
 		/*	\fn DisconnectFromServer
 		\brief	Handles disconnection

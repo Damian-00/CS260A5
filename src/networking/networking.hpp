@@ -34,7 +34,8 @@ using socklen_t = int; // Trick for accept
 namespace CS260 
 {
 	const int timeout = 0;
-	const unsigned char NEWPLAYER = 0b0;
+	const unsigned char NEWPLAYER = 0b1;
+	const unsigned char PLAYERINFO = 0b10;
 	const unsigned char SYNCODE = 0b1;
 	const unsigned char SYNACKCODE = 0b10;
 	const unsigned char LASTACKCODE = 0b100;
@@ -43,52 +44,20 @@ namespace CS260
 	const unsigned char FIN2CODE = 0b100000;
 	const unsigned char RSTCODE = 0b1000000;
 
+	struct NewPlayerPacket
+	{
+		unsigned char mID;
+		unsigned char mCode;
+	};
 
 	struct ConnectionPacketHeader
 	{
 		unsigned char mSequence;
 		unsigned char mACK;
 		unsigned char mCode;
-	};
-
-	struct ConnectionPacket
-	{
-		ConnectionPacketHeader mHeader;
-		void AttachACK(unsigned ack)
-		{
-			mHeader.mACK = ack;
-		}
-		void SetCode(unsigned char code)
-		{
-			mHeader.mCode = code;
-		}
-		void SetSequence(unsigned char sequence)
-		{
-			mHeader.mSequence = sequence;
-		}
-		unsigned char GetSequence()
-		{
-			return mHeader.mSequence;
-		}
-		unsigned char GetACK()
-		{
-			return mHeader.mACK;
-		}
-		unsigned char GetExpectedACK()
-		{
-			return mHeader.mACK + mHeader.mSequence;
-		}
-		unsigned char GetCode()
-		{
-			return mHeader.mCode;
-		}
-	};
-
-	struct NewPlayerPacket
-	{
 		unsigned char mID;
-		unsigned char mCode;
 	};
+
     /**
      * @brief
      *  Initializes the networking library
