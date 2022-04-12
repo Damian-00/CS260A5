@@ -1,10 +1,4 @@
 #include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
 
 #include "utils.hpp"
 
@@ -72,6 +66,7 @@ namespace CS260
 
 	void Client::Tick()
 	{
+		ReceiveMessages();
 		//// TODO: Reset the counter properly
 		//mNewPlayersOnFrame.clear();
 		////mPlayersState.clear();
@@ -239,6 +234,14 @@ namespace CS260
 			// TODO: Send connection ACK properly
 			mProtocol.SendPacket(SYNACK, &receivedPacket, 0);
 			mConnected = true;
+		}
+			break;
+		case Packet_Types::NewPlayer:
+		{
+			NewPlayerPacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			mNewPlayersOnFrame.push_back(receivedPacket);
+			mPlayersState.push_back(receivedPacket.mPlayerInfo);
 		}
 			break;
 		}

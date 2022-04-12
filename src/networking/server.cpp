@@ -1,9 +1,5 @@
 #include "server.hpp"
 #include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
 
 #include "utils.hpp"
 
@@ -12,6 +8,7 @@ namespace CS260
 	Server::Server(bool verbose, const std::string& ip_address, uint16_t port) :
 	mVerbose(verbose)
 	{
+		mCurrentID = rand() % 255 + 1;
 		// Create UDP socket for the Server
 		mSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
@@ -75,6 +72,11 @@ namespace CS260
 		return mClients.size();
 	}
 
+	std::vector<ClientInfo> Server::GetPlayersInfo()
+	{
+		return mClients;
+	}
+
 	void Server::ReceivePackets()
 	{
 		sockaddr senderAddres;
@@ -121,7 +123,7 @@ namespace CS260
 		case Packet_Types::SYN:
 		{
 			SYNACKPacket SYNACKpacket;
-			SYNACKpacket.mPlayerID = rand() % 255;
+			SYNACKpacket.mPlayerID = mCurrentID++;
 			mProtocol.SendPacket(Packet_Types::SYNACK, &SYNACKpacket, &senderAddress);
 		}			
 			break;
@@ -130,6 +132,24 @@ namespace CS260
 			// Copy the payload into a more manageable structure
 			SYNACKPacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+
+			NewPlayerPacket newPlayerPacket;
+			newPlayerPacket.mPlayerInfo.mID = receivedPacket.mPlayerID;
+			newPlayerPacket.mPlayerInfo.pos = { 0,0 };
+			newPlayerPacket.mPlayerInfo.rot = 0;
+			
+			for (auto& client : mClients)
+				mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &client.mEndpoint);
+			
+			for (auto& client : mClients)
+			{
+				newPlayerPacket.mPlayerInfo.mID = client.mPlayerInfo.mID;
+				newPlayerPacket.mPlayerInfo.pos = client.mPlayerInfo.pos;
+				newPlayerPacket.mPlayerInfo.rot = client.mPlayerInfo.rot;
+				mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &senderAddress);
+			}
+
+			// Add the new client to the players list
 			mClients.push_back(ClientInfo{ senderAddress, PlayerInfo{receivedPacket.mPlayerID, {0,0}, 0 } });
 			break;
 		}
@@ -145,23 +165,23 @@ namespace CS260
 		//	if (SendSYNACK(senderAddress, packet))
 		//		if (ReceiveACKFromSYNACK(senderAddress, packet))
 				{
-					NewPlayerPacket newPlayer;
-					newPlayer.mCode = NEWPLAYER;
-					newPlayer.mID = mClients.size();
-					// TODO: Notify the rest of the clients of the new client relialably
-					for (auto& client : mClients)
-					{
-						::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket),0, &client.mEndpoint, sizeof(client.mEndpoint));
-						// TODO: Handle error checking
-					}
-					// TODO: Notify the new client of the previus clients relialably
-					for (auto& client : mClients)
-					{
-						newPlayer.mID = client.mPlayerInfo.mID;
-						::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket), 0, &senderAddress, sizeof(senderAddress));
-						// TODO: Handle error checking
-					}
-					mClients.push_back(ClientInfo{ senderAddress, static_cast<unsigned char>(mClients.size())});
+					//NewPlayerPacket newPlayer;
+					//newPlayer.mCode = NEWPLAYER;
+					//newPlayer.mID = mClients.size();
+					//// TODO: Notify the rest of the clients of the new client relialably
+					//for (auto& client : mClients)
+					//{
+					//	::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket),0, &client.mEndpoint, sizeof(client.mEndpoint));
+					//	// TODO: Handle error checking
+					//}
+					//// TODO: Notify the new client of the previus clients relialably
+					//for (auto& client : mClients)
+					//{
+					//	newPlayer.mID = client.mPlayerInfo.mID;
+					//	::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket), 0, &senderAddress, sizeof(senderAddress));
+					//	// TODO: Handle error checking
+					//}
+					//mClients.push_back(ClientInfo{ senderAddress, static_cast<unsigned char>(mClients.size())});
 				}
 	}
 
@@ -204,6 +224,10 @@ namespace CS260
 				}
 			}
 		}
+	}
+
+	void Server::NotifyNewPlayer()
+	{
 	}
 
 

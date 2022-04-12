@@ -19,7 +19,8 @@ namespace CS260 {
 		ObjectCreation,
 		ObjectDestruction,
 		SYN,
-		SYNACK
+		SYNACK,
+		NewPlayer
 	};
 
 	
@@ -33,8 +34,7 @@ namespace CS260 {
 	};
 	struct ProtocolPacket
 	{
-		PacketHeader mHeader;
-		std::array<char, MAX_BUFFER_SIZE - sizeof(PacketHeader)> mBuffer;
+		std::array<char, MAX_BUFFER_SIZE > mBuffer;
 	};
 
 	struct ObjectUpdatePacket{
@@ -50,6 +50,11 @@ namespace CS260 {
 		unsigned char mID;
 		glm::vec2 pos;
 		float rot;
+	};
+
+	struct NewPlayerPacket
+	{
+		PlayerInfo mPlayerInfo;
 	};
 	struct ShipUpdatePacket
 	{

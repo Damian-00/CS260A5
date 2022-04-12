@@ -812,6 +812,17 @@ void GameStatePlayUpdate(void)
                 vec2 pos{ 20 * mRemoteShips.size(), 0 };
 				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (mRemoteShips.size()), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true)});
             }
+            for (auto& player : server->GetPlayersInfo())
+            {
+                for (auto& ship : mRemoteShips)
+                {
+                    if (ship.mPlayerID == player.mPlayerInfo.mID)
+                    {
+                        ship.mShipInstance->posCurr = player.mPlayerInfo.pos;
+                        ship.mShipInstance->dirCurr = player.mPlayerInfo.rot;
+                    }
+                }
+            }
         }		
         else
         {
@@ -822,16 +833,16 @@ void GameStatePlayUpdate(void)
             for(auto& playerInfo : client->GetNewPlayers())
             {
                 vec2 pos{ 20 * mRemoteShips.size(), 0 };
-                mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true) });
+                mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true) });
             }
+			
             for (auto& playerInfo : client->GetPlayersInfo())
             {
                 for (auto& ship : mRemoteShips)
                 {
                     if (ship.mPlayerID == playerInfo.mID)
                     {
-                        ship.mShipInstance->posCurr.x = playerInfo.pos[0];
-                        ship.mShipInstance->posCurr.y = playerInfo.pos[1];
+                        ship.mShipInstance->posCurr = playerInfo.pos;
                         ship.mShipInstance->dirCurr = playerInfo.rot;
                     }
                 }

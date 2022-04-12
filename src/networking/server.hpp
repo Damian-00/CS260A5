@@ -16,6 +16,7 @@ namespace CS260
 	
 	class Server
 	{
+		unsigned char mCurrentID;
 		Protocol mProtocol;
 		bool mVerbose;
 		SOCKET mSocket;
@@ -37,6 +38,8 @@ namespace CS260
 		
 		int PlayerCount();
 
+		std::vector<ClientInfo> GetPlayersInfo();
+
 	private:
 
 		void ReceivePackets();
@@ -46,6 +49,8 @@ namespace CS260
 		void HandleNewClients();
 
 		void ReceivePlayersInformation();
+
+		void NotifyNewPlayer();
 
 		/*	\fn SendRST
 		\brief	Sends reset message
