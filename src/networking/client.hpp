@@ -43,7 +43,7 @@ namespace CS260
 
 		void Tick();
 
-		void SendPlayerInfo(glm::vec2 pos, glm::vec2 vel, float rotation);
+		void SendPlayerInfo(glm::vec2 pos, glm::vec2 vel, float rotation, bool input );
 
 		std::vector<NewPlayerPacket> GetNewPlayers();
 

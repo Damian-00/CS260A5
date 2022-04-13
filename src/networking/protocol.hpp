@@ -51,6 +51,7 @@ namespace CS260 {
 		glm::vec2 pos;
 		float rot;
 		glm::vec2 vel;
+		bool inputPressed; //for particles
 	};
 
 	struct NewPlayerPacket

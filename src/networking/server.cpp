@@ -135,6 +135,7 @@ namespace CS260
 			break;
 		case Packet_Types::ShipPacket:
 
+			if (!mClients.empty())
 			for (auto& i : mClients) {
 				if (ShipUpdatePacket * mCastedPacket = reinterpret_cast<ShipUpdatePacket*>(&packet)) {
 					if (i.mPlayerInfo.mID == mCastedPacket->mPlayerInfo.mID) {

@@ -123,7 +123,7 @@ namespace CS260
 		//}
 	}
 
-	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation)
+	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation, bool input)
 	{
 		
 		{
@@ -132,6 +132,7 @@ namespace CS260
 			myShipPacket.mPlayerInfo.pos = pos;
 			myShipPacket.mPlayerInfo.vel = vel;
 			myShipPacket.mPlayerInfo.rot = rotation;
+			myShipPacket.mPlayerInfo.inputPressed = input;
 
 			mProtocol.SendPacket(Packet_Types::ShipPacket, &myShipPacket, nullptr);
 		}
