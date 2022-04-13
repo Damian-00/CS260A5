@@ -1,10 +1,4 @@
 #include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-
 #include "utils.hpp"
 
 namespace CS260
@@ -72,6 +66,7 @@ namespace CS260
 		// Handle all the receive packets
 		ReceivePackets();
 
+		mProtocol.Tick();
 		// This is to avoid having the clients disconnecting while they are playing by their own
 		SendVoidPackets();
 
@@ -113,6 +108,15 @@ namespace CS260
 	const std::vector<unsigned char>& Server::GetDisconnectedPlayersIDs()
 	{
 		return mDisconnectedPlayersIDs;
+	}
+
+	void Server::SendPlayerInfo(sockaddr _endpoint, PlayerInfo _playerinfo)
+	{
+		ShipUpdatePacket mPacket;
+		mPacket.mPlayerInfo = _playerinfo;
+		
+		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
+
 	}
 
 	void Server::ReceivePackets()
@@ -164,8 +168,8 @@ namespace CS260
 			break;
 		case Packet_Types::ShipPacket:
 
-			for (auto& i : mClients)
-			{
+			if (!mClients.empty())
+			for (auto& i : mClients) {
 				if (ShipUpdatePacket * mCastedPacket = reinterpret_cast<ShipUpdatePacket*>(&packet)) {
 					if (i.mPlayerInfo.mID == mCastedPacket->mPlayerInfo.mID) {
 						i.mPlayerInfo = mCastedPacket->mPlayerInfo;

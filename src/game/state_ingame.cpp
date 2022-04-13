@@ -114,7 +114,8 @@ struct GameObjInst
     float    dirCurr;   // object current direction
     mat4     transform; // object drawing matrix
     void*    pUserData; // pointer to custom data specific for each object type
-    unsigned id;        
+    unsigned id;   
+    bool inputPressed;
 };
 
 // ---------------------------------------------------------------------------
@@ -831,21 +832,31 @@ void GameStatePlayUpdate(void)
             }
             for (auto& player : server->GetPlayersInfo())
             {
+
                 for (auto& ship : mRemoteShips)
                 {
+                    //if it is that players ship
                     if (ship.mPlayerID == player.mPlayerInfo.mID)
                     {
                         ship.mShipInstance->posCurr = player.mPlayerInfo.pos;
                         ship.mShipInstance->dirCurr = player.mPlayerInfo.rot;
+                        ship.mShipInstance->velCurr = player.mPlayerInfo.vel;
+                        ship.mShipInstance->inputPressed = player.mPlayerInfo.inputPressed;
                     }
+                    else { // not that player ship
+
+                        server->SendPlayerInfo(player.mEndpoint, { ship.mPlayerID, ship.mShipInstance->posCurr, ship.mShipInstance->dirCurr, ship.mShipInstance->velCurr, ship.mShipInstance->inputPressed });
+
+                    }
+                     
+                   
                 }
             }
         }		
         else
         {
 			if(client->Connected())
-                client->SendPlayerInfo(spShip->posCurr,spShip->velCurr, spShip->dirCurr);
-			
+                client->SendPlayerInfo(spShip->posCurr,spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
             client->Tick();
 			
             // First of all check if we need to disconnect any player
@@ -878,6 +889,21 @@ void GameStatePlayUpdate(void)
                     {
                         ship.mShipInstance->posCurr = playerInfo.pos;
                         ship.mShipInstance->dirCurr = playerInfo.rot;
+                        ship.mShipInstance->velCurr = playerInfo.vel;
+                        ship.mShipInstance->inputPressed = playerInfo.inputPressed;
+                        if (ship.mShipInstance->inputPressed) {
+
+                            vec2 pos, dir;
+                            dir = { glm::cos(ship.mShipInstance->dirCurr), glm::sin(ship.mShipInstance->dirCurr) };
+                            pos = dir;
+                            dir = dir * (SHIP_ACCEL_FORWARD * dt);
+                     
+                            pos = pos * -ship.mShipInstance->scale;
+                            pos = pos + ship.mShipInstance->posCurr;
+
+                            sparkCreate(PTCL_EXHAUST, &pos, 2, ship.mShipInstance->dirCurr + 0.8f * PI, ship.mShipInstance->dirCurr + 1.2f * PI);
+
+                        }
                     }
                 }
             }

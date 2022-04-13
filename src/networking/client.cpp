@@ -1,8 +1,5 @@
 #include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
+
 
 #include "utils.hpp"
 
@@ -78,7 +75,7 @@ namespace CS260
 		mNewPlayersOnFrame.clear();
 		mDisconnectedPlayersIDs.clear();
 		ReceiveMessages();
-
+		mProtocol.Tick();
 		HandleTimeOut();
 		////mPlayersState.clear();
 
@@ -133,7 +130,7 @@ namespace CS260
 		//}
 	}
 
-	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation)
+	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation, bool input)
 	{
 		
 		{
@@ -142,6 +139,7 @@ namespace CS260
 			myShipPacket.mPlayerInfo.pos = pos;
 			myShipPacket.mPlayerInfo.vel = vel;
 			myShipPacket.mPlayerInfo.rot = rotation;
+			myShipPacket.mPlayerInfo.inputPressed = input;
 
 			mProtocol.SendPacket(Packet_Types::ShipPacket, &myShipPacket, nullptr);
 		}
@@ -242,6 +240,24 @@ namespace CS260
 		case Packet_Types::ObjectUpdate:
 			break;
 		case Packet_Types::ShipPacket:
+
+			ShipUpdatePacket recPacket;
+			memcpy(&recPacket, packet.mBuffer.data(), sizeof(recPacket));
+			if (mID != recPacket.mPlayerInfo.mID){
+				//not my ship, so store the data
+
+				for (auto& i : mPlayersState) {
+
+					if (i.mID == recPacket.mPlayerInfo.mID) {
+
+						i = recPacket.mPlayerInfo;
+
+					}
+
+				}
+
+			}
+
 			break;
 		case Packet_Types::SYN:
 			break;
@@ -445,7 +461,5 @@ namespace CS260
 	{
 		return mDisconnectedPlayersIDs;
 	}
-
-
 
 }

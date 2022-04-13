@@ -60,6 +60,8 @@ namespace CS260
 
 		const std::vector<unsigned char>& GetDisconnectedPlayersIDs();
 
+		void SendPlayerInfo(sockaddr _endpoint, PlayerInfo _playerinfo);
+
 	private:
 
 		void ReceivePackets();

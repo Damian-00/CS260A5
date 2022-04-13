@@ -7,6 +7,9 @@
 #include <queue>
 #include <array>
 
+#include <tuple>
+
+
 namespace CS260 {
 	
 	const unsigned MAX_BUFFER_SIZE = 8192;
@@ -56,6 +59,7 @@ namespace CS260 {
 		glm::vec2 pos;
 		float rot;
 		glm::vec2 vel;
+		bool inputPressed; //for particles
 	};
 
 	struct NewPlayerPacket
@@ -104,6 +108,8 @@ namespace CS260 {
 		Protocol();
 		
 		~Protocol();
+
+		void Tick();
 		
 		void SendPacket(Packet_Types, void* packet, const sockaddr* = nullptr);
 
@@ -116,7 +122,12 @@ namespace CS260 {
 		unsigned GetTypeSize(Packet_Types type, bool* needsACK = nullptr);
 
 		unsigned mSequenceNumber;
-		std::vector<std::array<char, 8192>> mUnacknowledgedMessages;
+		//std::vector<std::pair<std::array<char, 8192>, unsigned>> mUnacknowledgedMessages;
+		std::vector<std::tuple<std::array<char, 8192>, unsigned, const sockaddr*>> mUnacknowledgedMessages;
 		SOCKET mSocket;
+
+		const unsigned mResendTime = 300;
+
+		const unsigned tickRate = 16;
 	};
 }
