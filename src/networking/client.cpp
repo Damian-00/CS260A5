@@ -1,4 +1,8 @@
 #include "client.hpp"
+#include "client.hpp"
+#include "client.hpp"
+#include "client.hpp"
+#include "client.hpp"
 
 #include "utils.hpp"
 
@@ -9,7 +13,9 @@ namespace CS260
 	Client::Client(const std::string& ip_address, uint16_t port, bool verbose)
 		:mVerbose(verbose),
 		mSocket(0),
-		mConnected(false)
+		mConnected(false),
+		mClose(false),
+		mKeepAliveTimer(0)
 	{	
 
 		// Create UDP socket for the client
@@ -66,9 +72,14 @@ namespace CS260
 
 	void Client::Tick()
 	{
+		mKeepAliveTimer += tickRate;
+		
 		//// TODO: Reset the counter properly
 		mNewPlayersOnFrame.clear();
+		mDisconnectedPlayersIDs.clear();
 		ReceiveMessages();
+
+		HandleTimeOut();
 		////mPlayersState.clear();
 
 		//PlayerInfo packet;
@@ -208,8 +219,18 @@ namespace CS260
 
 	}
 
+	void Client::HandleTimeOut()
+	{
+		// We assume we lost connection with the server because we did not receive any message from it
+		// The server is constantly sending messages, so the timer should be updated on each tick
+		// If not, something bad happened and we force the application to close
+		if (mKeepAliveTimer > timeOutTimer)
+			mClose = true;
+	}
+
 	void Client::HandleReceivedMessage(ProtocolPacket& packet, Packet_Types type)
 	{
+		mKeepAliveTimer = 0;
 		switch (type)
 		{
 		case Packet_Types::VoidPacket:
@@ -243,6 +264,28 @@ namespace CS260
 			mPlayersState.push_back(receivedPacket.mPlayerInfo);
 		}
 			break;
+
+		// We were forced to disconnect because the server's time out timer expired
+		case Packet_Types::PlayerDisconnect:
+		{
+			mClose = true;
+		}
+		break;
+		case Packet_Types::ACKDisconnect:
+		{
+			PlayerDisconnectACKPacket sendPacket;
+			sendPacket.mPlayerID = mID;
+			mProtocol.SendPacket(Packet_Types::ACKDisconnect, &sendPacket);
+		}
+			break;
+			// We were notified that a client was disconnected either by the server or by the client itself
+		case Packet_Types::NotifyPlayerDisconnection:
+		{
+			PlayerDisconnectPacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			mDisconnectedPlayersIDs.push_back(receivedPacket.mPlayerID);
+		}
+		break;
 		}
 	}
 
@@ -384,6 +427,23 @@ namespace CS260
 	bool Client::Connected()
 	{
 		return mConnected;
+	}
+
+	bool Client::ShouldClose()
+	{
+		return mClose;
+	}
+
+	void Client::NotifyDisconnection()
+	{
+		PlayerDisconnectPacket packet;
+		packet.mPlayerID = mID;
+		mProtocol.SendPacket(Packet_Types::PlayerDisconnect, &packet);
+	}
+
+	const std::vector<unsigned char>& Client::GetDisconnectedPlayersIDs()
+	{
+		return mDisconnectedPlayersIDs;
 	}
 
 

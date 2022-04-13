@@ -38,6 +38,10 @@ class game
     std::unordered_map<int, int> m_key_states_prev;
 
   public:
+
+	// This is made public to make our lifes easier closing the application from networking
+    bool should_continue = true;
+	
     static game&
     instance()
     {

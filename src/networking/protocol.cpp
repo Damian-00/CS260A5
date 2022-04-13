@@ -147,6 +147,18 @@ namespace CS260
 			packetSize = sizeof(NewPlayerPacket);
 			needsACK = true;
 			break;
+		case Packet_Types::PlayerDisconnect:
+			packetSize = sizeof(PlayerDisconnectPacket);
+			needsACK = false;
+			break;
+		case Packet_Types::ACKDisconnect:
+			packetSize = sizeof(PlayerDisconnectACKPacket);
+			needsACK = false;
+			break;
+		case Packet_Types::NotifyPlayerDisconnection:
+			packetSize = sizeof(PlayerDisconnectPacket);
+			needsACK = true;
+			break;
 		}
 		
 		if(needsACKPtr)

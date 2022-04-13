@@ -65,7 +65,7 @@ bool game::update()
     m_game_time        = m_game_time + m_dt;
 
     // Window update
-    bool should_continue = m_window->update();
+    should_continue = m_window->update();
 
     m_key_states_prev = m_key_states;
     for (int i = 0; i < GLFW_KEY_LAST; ++i) {

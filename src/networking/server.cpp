@@ -1,9 +1,24 @@
 #include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
 
 #include "utils.hpp"
 
 namespace CS260
 {
+	ClientInfo::ClientInfo(sockaddr endpoint, PlayerInfo playerInfo):
+		mEndpoint(endpoint),
+		mAliveTimer(0),
+		mDisconnecting(false),
+		mDisconnectTimeout(0),
+		mDisconnectTries(0),
+		mPlayerInfo(playerInfo)
+	{
+	}
+
 	Server::Server(bool verbose, const std::string& ip_address, uint16_t port) :
 	mVerbose(verbose)
 	{
@@ -47,9 +62,22 @@ namespace CS260
 
 	void Server::Tick()
 	{
+		// Update Keep alive timer
+		for (auto& client : mClients)
+			client.mAliveTimer += tickRate;
+		
+		mDisconnectedPlayersIDs.clear();
 		mNewPlayersOnFrame.clear();
+		
 		// Handle all the receive packets
 		ReceivePackets();
+
+		// This is to avoid having the clients disconnecting while they are playing by their own
+		SendVoidPackets();
+
+		CheckTimeoutPlayer();
+
+		HandleDisconnection();
 		
 
 		// TOOD: We may start the game with less than 4 players
@@ -82,6 +110,11 @@ namespace CS260
 		return mClients;
 	}
 
+	const std::vector<unsigned char>& Server::GetDisconnectedPlayersIDs()
+	{
+		return mDisconnectedPlayersIDs;
+	}
+
 	void Server::ReceivePackets()
 	{
 		sockaddr senderAddres;
@@ -110,7 +143,13 @@ namespace CS260
 			}
 		}
 	}
-
+	void Server::SendVoidPackets()
+	{
+		for (auto& client : mClients)
+		{
+			mProtocol.SendPacket(Packet_Types::VoidPacket, 0, &client.mEndpoint);
+		}
+	}
 	void Server::HandleReceivedPacket(ProtocolPacket& packet, Packet_Types type, sockaddr& senderAddress)
 	{
 		switch (type) 
@@ -125,10 +164,12 @@ namespace CS260
 			break;
 		case Packet_Types::ShipPacket:
 
-			for (auto& i : mClients) {
+			for (auto& i : mClients)
+			{
 				if (ShipUpdatePacket * mCastedPacket = reinterpret_cast<ShipUpdatePacket*>(&packet)) {
 					if (i.mPlayerInfo.mID == mCastedPacket->mPlayerInfo.mID) {
 						i.mPlayerInfo = mCastedPacket->mPlayerInfo;
+						i.mAliveTimer = 0;
 					}
 				}
 			}
@@ -146,104 +187,143 @@ namespace CS260
 			// Copy the payload into a more manageable structure
 			SYNACKPacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
-
-			NewPlayerPacket newPlayerPacket;
-			newPlayerPacket.mPlayerInfo.mID = receivedPacket.mPlayerID;
-			newPlayerPacket.mPlayerInfo.pos = { 0,0 };
-			newPlayerPacket.mPlayerInfo.rot = 0;
+			HandleNewPlayerACKPacket(receivedPacket, senderAddress);
+			break;
+		}
+		case Packet_Types::PlayerDisconnect:
+		{
+			PlayerDisconnectPacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			
-			mNewPlayersOnFrame.push_back(newPlayerPacket);
-			
-			for (auto& client : mClients)
-				mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &client.mEndpoint);
+			PlayerDisconnectACKPacket disconnectPacket;
+			mProtocol.SendPacket(Packet_Types::ACKDisconnect, &disconnectPacket, &senderAddress);
 			
 			for (auto& client : mClients)
 			{
-				newPlayerPacket.mPlayerInfo.mID = client.mPlayerInfo.mID;
-				newPlayerPacket.mPlayerInfo.pos = client.mPlayerInfo.pos;
-				newPlayerPacket.mPlayerInfo.rot = client.mPlayerInfo.rot;
-				mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &senderAddress);
+				if (client.mPlayerInfo.mID == receivedPacket.mPlayerID)
+				{
+					client.mDisconnecting = true;
+					client.mAliveTimer = 0;
+				}
 			}
+			break;
+		}
+		// We received the last disconnection ACK so remove the client from the list
+		case Packet_Types::ACKDisconnect:
+		{
+			PlayerDisconnectACKPacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 
-			// Add the new client to the players list
-			mClients.push_back(ClientInfo{ senderAddress, PlayerInfo{receivedPacket.mPlayerID, {0,0}, 0 } });
+			// Remove the client from the list
+			mClients.erase(std::remove_if(mClients.begin(), mClients.end(), [&receivedPacket](ClientInfo& client)
+				{ 
+					return client.mPlayerInfo.mID == receivedPacket.mPlayerID;
+				}),
+				mClients.end());
+			mDisconnectedPlayersIDs.push_back(receivedPacket.mPlayerID);
+			
+			NotifyPlayerDisconnection(receivedPacket.mPlayerID);
 			break;
 		}
 		}
 	}
 
-	void Server::HandleNewClients()
+	void Server::HandleNewPlayerACKPacket(SYNACKPacket& packet, sockaddr& senderAddress)
 	{
-		PrintMessage("Accepting new client");
+		NewPlayerPacket newPlayerPacket;
+		newPlayerPacket.mPlayerInfo.mID = packet.mPlayerID;
+		newPlayerPacket.mPlayerInfo.pos = { 0,0 };
+		newPlayerPacket.mPlayerInfo.rot = 0;
 
-		sockaddr senderAddress;
-		//if(ReceiveSYN(senderAddress, packet))
-		//	if (SendSYNACK(senderAddress, packet))
-		//		if (ReceiveACKFromSYNACK(senderAddress, packet))
-				{
-					//NewPlayerPacket newPlayer;
-					//newPlayer.mCode = NEWPLAYER;
-					//newPlayer.mID = mClients.size();
-					//// TODO: Notify the rest of the clients of the new client relialably
-					//for (auto& client : mClients)
-					//{
-					//	::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket),0, &client.mEndpoint, sizeof(client.mEndpoint));
-					//	// TODO: Handle error checking
-					//}
-					//// TODO: Notify the new client of the previus clients relialably
-					//for (auto& client : mClients)
-					//{
-					//	newPlayer.mID = client.mPlayerInfo.mID;
-					//	::sendto(mSocket, reinterpret_cast<char*>(&newPlayer), sizeof(NewPlayerPacket), 0, &senderAddress, sizeof(senderAddress));
-					//	// TODO: Handle error checking
-					//}
-					//mClients.push_back(ClientInfo{ senderAddress, static_cast<unsigned char>(mClients.size())});
-				}
+		mNewPlayersOnFrame.push_back(newPlayerPacket);
+
+		for (auto& client : mClients)
+			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &client.mEndpoint);
+
+		for (auto& client : mClients)
+		{
+			newPlayerPacket.mPlayerInfo.mID = client.mPlayerInfo.mID;
+			newPlayerPacket.mPlayerInfo.pos = client.mPlayerInfo.pos;
+			newPlayerPacket.mPlayerInfo.rot = client.mPlayerInfo.rot;
+			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &senderAddress);
+		}
+
+		newPlayerPacket.mPlayerInfo.mID = packet.mPlayerID;
+		newPlayerPacket.mPlayerInfo.pos = { 0,0 };
+		newPlayerPacket.mPlayerInfo.rot = 0;
+		
+		// Add the new client to the players list
+		mClients.push_back(ClientInfo(senderAddress, newPlayerPacket.mPlayerInfo));
+	}
+	
+	void Server::CheckTimeoutPlayer()
+	{
+		for (auto& discconectClient : mClients)
+		{
+			if (discconectClient.mAliveTimer > timeOutTimer)
+			{
+				PlayerDisconnectPacket packet;
+				packet.mPlayerID = discconectClient.mPlayerInfo.mID;
+				
+				mProtocol.SendPacket(Packet_Types::PlayerDisconnect, &packet, &discconectClient.mEndpoint);
+
+				mDisconnectedPlayersIDs.push_back(discconectClient.mPlayerInfo.mID);
+				NotifyPlayerDisconnection(discconectClient.mPlayerInfo.mID);
+			}
+		}
+		// Remove the client from the list
+		mClients.erase(std::remove_if(mClients.begin(), mClients.end(), [](ClientInfo& client) 
+			{ return client.mAliveTimer > timeOutTimer; }),
+			mClients.end());
 	}
 
-	void Server::ReceivePlayersInformation()
+	void Server::NotifyPlayerDisconnection(unsigned char playerID)
 	{
-		sockaddr senderAddres;
-		socklen_t size = sizeof(senderAddres);
-		PlayerInfo packet;
-		WSAPOLLFD poll;
-		poll.fd = mSocket;
-		poll.events = POLLIN;
-		
-		if (WSAPoll(&poll, 1, timeout) > 0)
-		{
-			if (poll.revents & POLLERR)
-			{
-				PrintError("Polling receiving players information");
-			}
-			else
-			{
-				// Receive ACK of SYNACK
-				int bytesReceived = ::recvfrom(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0, &senderAddres, &size);
-				if (bytesReceived == SOCKET_ERROR)
-				{
-					PrintError("Receiving message.");
-				}
-				// Make sure it is an ACK code
-				///if (packet.mCode & PLAYERINFO)
-				{
-					for (auto& client : mClients)
-					{
-						if (client.mPlayerInfo.mID == packet.mID)
-						{
-							client.mPlayerInfo.pos[0] = packet.pos[0];
-							client.mPlayerInfo.pos[1] = packet.pos[1];
+		PlayerDisconnectPacket packet;
+		packet.mPlayerID = playerID;
 
-							client.mPlayerInfo.rot = packet.rot;
-						}
-					}
-				}
-			}
+		for (auto& client : mClients)
+		{
+			if(client.mPlayerInfo.mID != playerID)
+				mProtocol.SendPacket(Packet_Types::NotifyPlayerDisconnection, &packet, &client.mEndpoint);
 		}
 	}
 
-	void Server::NotifyNewPlayer()
+	void Server::HandleDisconnection()
 	{
+		for (auto& client : mClients)
+		{
+			// Check that the client is disconnecting
+			if (client.mDisconnecting)
+			{
+				// Check that we did not exceed the maximum amount of tries for disconnection
+				if (client.mDisconnectTries < disconnectTries)
+				{
+					// If so check if the timeout to send another packet arrived
+					if (client.mDisconnectTimeout > timeOutTimer)
+					{
+						client.mDisconnectTries++;
+						PlayerDisconnectACKPacket disconnectPacket;
+						mProtocol.SendPacket(Packet_Types::ACKDisconnect, &disconnectPacket, &client.mEndpoint);
+					}
+					// If not update the timer
+					else
+						client.mDisconnectTimeout += tickRate;
+				}
+				// We exceeded the amount of tries, so notify the rest of the clients from the disconnection
+				else
+				{
+					mDisconnectedPlayersIDs.push_back(client.mPlayerInfo.mID);
+					NotifyPlayerDisconnection(client.mPlayerInfo.mID);
+				}
+			}
+		}
+
+		mClients.erase(std::remove_if(mClients.begin(), mClients.end(), [](ClientInfo& client)
+			{
+				return client.mDisconnectTries >= disconnectTries;
+			}),
+			mClients.end());
 	}
 
 

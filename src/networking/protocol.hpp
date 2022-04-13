@@ -10,6 +10,8 @@
 namespace CS260 {
 	
 	const unsigned MAX_BUFFER_SIZE = 8192;
+	const unsigned tickRate = 16;
+	const unsigned timeOutTimer = 1000;
 
 	enum Packet_Types {
 
@@ -20,7 +22,10 @@ namespace CS260 {
 		ObjectDestruction,
 		SYN,
 		SYNACK,
-		NewPlayer
+		NewPlayer,
+		PlayerDisconnect,
+		ACKDisconnect		,
+		NotifyPlayerDisconnection
 	};
 
 	
@@ -74,6 +79,15 @@ namespace CS260 {
 	};
 	
 	struct SYNACKPacket
+	{
+		unsigned char mPlayerID;
+	};
+	
+	struct PlayerDisconnectPacket
+	{
+		unsigned char mPlayerID;
+	};
+	struct PlayerDisconnectACKPacket
 	{
 		unsigned char mPlayerID;
 	};

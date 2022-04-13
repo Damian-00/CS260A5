@@ -10,10 +10,23 @@ namespace CS260
 {
 	struct ClientInfo
 	{
+		ClientInfo(sockaddr endpoint, PlayerInfo playerInfo);
+		
+		// Networking
 		sockaddr mEndpoint;
+		unsigned mAliveTimer;
+
+		// Disconnection
+		bool mDisconnecting;
+		unsigned mDisconnectTimeout;
+		unsigned mDisconnectTries;
+
+		// Player Information
 		PlayerInfo mPlayerInfo;
 	};
 	
+	const unsigned disconnectTries = 3; // In fact, there is a total of 4 tries because the first one is not counted
+
 	class Server
 	{
 		unsigned char mCurrentID;
@@ -23,6 +36,8 @@ namespace CS260
 		sockaddr_in mEndpoint;
 		std::vector<ClientInfo> mClients;
 		std::vector<NewPlayerPacket> mNewPlayersOnFrame;
+		
+		std::vector<unsigned char> mDisconnectedPlayersIDs;
 
 	public:
 		/*	\fn Server
@@ -43,17 +58,23 @@ namespace CS260
 		
 		std::vector<ClientInfo> GetPlayersInfo();
 
+		const std::vector<unsigned char>& GetDisconnectedPlayersIDs();
+
 	private:
 
 		void ReceivePackets();
+
+		void SendVoidPackets();
 		
 		void HandleReceivedPacket(ProtocolPacket& packet, Packet_Types type, sockaddr& senderAddress);
 
-		void HandleNewClients();
+		void HandleNewPlayerACKPacket(SYNACKPacket& packet, sockaddr& senderAddress);
 
-		void ReceivePlayersInformation();
+		void CheckTimeoutPlayer();
 
-		void NotifyNewPlayer();
+		void NotifyPlayerDisconnection(unsigned char playerID);
+
+		void HandleDisconnection();
 
 		/*	\fn SendRST
 		\brief	Sends reset message

@@ -801,11 +801,29 @@ void GameStatePlayUpdate(void)
     // Networking
     // ====================
     // Update the network 60 times/seconds
-    if (CS260::ms_since(networkClock) > 16)
+    if (CS260::ms_since(networkClock) > CS260::tickRate)
     {
         if (is_server)
         {
             server->Tick();
+
+            // First of all check if we need to disconnect any player
+            for (auto& playerID : server->GetDisconnectedPlayersIDs())
+            {
+                // Destroy the ship
+                for (auto& ship : mRemoteShips)
+                {
+                    if(ship.mPlayerID == playerID)
+                        gameObjInstDestroy(ship.mShipInstance);						
+                }
+				
+                mRemoteShips.erase(std::remove_if(mRemoteShips.begin(), mRemoteShips.end(), [playerID](const RemoteShipInfo& ship)
+                    {
+                        return ship.mPlayerID == playerID;
+                    }),
+                    mRemoteShips.end());
+            }
+			
             // We added a new player
             for (auto& playerInfo : server->GetNewPlayers())
             {
@@ -827,8 +845,25 @@ void GameStatePlayUpdate(void)
         {
 			if(client->Connected())
                 client->SendPlayerInfo(spShip->posCurr,spShip->velCurr, spShip->dirCurr);
+			
             client->Tick();
 			
+            // First of all check if we need to disconnect any player
+            for (auto& playerID : client->GetDisconnectedPlayersIDs())
+            {
+                // Destroy the ship
+                for (auto& ship : mRemoteShips)
+                {
+                    if (ship.mPlayerID == playerID)
+                        gameObjInstDestroy(ship.mShipInstance);
+                }
+
+                std::remove_if(mRemoteShips.begin(), mRemoteShips.end(), [playerID](const RemoteShipInfo& ship)
+                    {
+                        return ship.mPlayerID == playerID;
+                    });
+            }
+
             for(auto& playerInfo : client->GetNewPlayers())
             {
                 vec2 pos{ 20 * mRemoteShips.size(), 0 };
@@ -845,6 +880,17 @@ void GameStatePlayUpdate(void)
                         ship.mShipInstance->dirCurr = playerInfo.rot;
                     }
                 }
+            }
+
+			// Handle window about to clsoe
+            if (!game::instance().should_continue)
+            {
+                client->NotifyDisconnection();
+            }
+            // Handle connection lost
+            if (client->ShouldClose())
+            {
+                game::instance().should_continue = false;
             }
         }		
     }

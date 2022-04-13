@@ -25,9 +25,12 @@ namespace CS260
 		unsigned char mID;
 		bool mConnected;
 		bool mVerbose;
+		bool mClose;
+		unsigned mKeepAliveTimer;
 		SOCKET mSocket;
 		std::vector<NewPlayerPacket> mNewPlayersOnFrame;
 		std::vector<PlayerInfo> mPlayersState;
+		std::vector<unsigned char> mDisconnectedPlayersIDs;
 		
 	public:
 
@@ -51,6 +54,11 @@ namespace CS260
 
 		bool Connected();
 
+		bool ShouldClose();
+
+		void NotifyDisconnection();
+
+		const std::vector<unsigned char>& GetDisconnectedPlayersIDs();
 
 	private:
 		/*	\fn ConnectToServer
@@ -64,6 +72,8 @@ namespace CS260
 		bool SendSYN();
 		
 		void ReceiveMessages();
+
+		void HandleTimeOut();
 		
 		void HandleReceivedMessage(ProtocolPacket& packet, Packet_Types type);
 
