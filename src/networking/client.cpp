@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "client.hpp"
 
 #include "utils.hpp"
 
@@ -221,6 +222,24 @@ namespace CS260
 		case Packet_Types::ObjectUpdate:
 			break;
 		case Packet_Types::ShipPacket:
+
+			ShipUpdatePacket recPacket;
+			memcpy(&recPacket, packet.mBuffer.data(), sizeof(recPacket));
+			if (mID != recPacket.mPlayerInfo.mID){
+				//not my ship, so store the data
+
+				for (auto& i : mPlayersState) {
+
+					if (i.mID == recPacket.mPlayerInfo.mID) {
+
+						i = recPacket.mPlayerInfo;
+
+					}
+
+				}
+
+			}
+
 			break;
 		case Packet_Types::SYN:
 			break;
@@ -385,6 +404,8 @@ namespace CS260
 	{
 		return mConnected;
 	}
+
+
 
 
 

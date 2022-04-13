@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include "server.hpp"
 
 #include "utils.hpp"
 
@@ -80,6 +81,15 @@ namespace CS260
 	std::vector<ClientInfo> Server::GetPlayersInfo()
 	{
 		return mClients;
+	}
+
+	void Server::SendPlayerInfo(sockaddr _endpoint, PlayerInfo _playerinfo)
+	{
+		ShipUpdatePacket mPacket;
+		mPacket.mPlayerInfo = _playerinfo;
+		
+		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
+
 	}
 
 	void Server::ReceivePackets()

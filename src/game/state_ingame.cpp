@@ -813,13 +813,22 @@ void GameStatePlayUpdate(void)
             }
             for (auto& player : server->GetPlayersInfo())
             {
+
                 for (auto& ship : mRemoteShips)
                 {
+                    //if it is that players ship
                     if (ship.mPlayerID == player.mPlayerInfo.mID)
                     {
                         ship.mShipInstance->posCurr = player.mPlayerInfo.pos;
                         ship.mShipInstance->dirCurr = player.mPlayerInfo.rot;
                     }
+                    else { // not that player ship
+
+                        server->SendPlayerInfo(player.mEndpoint, { ship.mPlayerID, ship.mShipInstance->posCurr, ship.mShipInstance->dirCurr, ship.mShipInstance->velCurr });
+
+                    }
+                     
+                   
                 }
             }
         }		

@@ -43,6 +43,8 @@ namespace CS260
 		
 		std::vector<ClientInfo> GetPlayersInfo();
 
+		void SendPlayerInfo(sockaddr _endpoint, PlayerInfo _playerinfo);
+
 	private:
 
 		void ReceivePackets();

@@ -51,7 +51,6 @@ namespace CS260
 
 		bool Connected();
 
-
 	private:
 		/*	\fn ConnectToServer
 		\brief	Handles connection
