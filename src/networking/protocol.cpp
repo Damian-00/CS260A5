@@ -4,6 +4,7 @@
 
 #include "utils.hpp"
 
+
 namespace CS260 
 {
 	Protocol::Protocol():
@@ -17,6 +18,27 @@ namespace CS260
 	Protocol::~Protocol()
 	{
 		NetworkDestroy();
+	}
+	void Protocol::Tick()
+	{
+		for (auto & message : mUnacknowledgedMessages) {
+			std::get<1>(message) += tickRate;
+			if (std::get<1>(message) > mResendTime) {
+				//need to resend the message
+
+				if (std::get<2>(message)) { // there is a sockaddr pointer
+
+					sendto(mSocket, std::get<0>(message).data(), std::get<0>(message).size(), 0, std::get<2>(message), sizeof(sockaddr));
+				}
+				else {
+
+					send(mSocket, std::get<0>(message).data(), std::get<0>(message).size(), 0);
+
+				}
+			}
+		}
+
+
 	}
 	void Protocol::SendPacket(Packet_Types _type, void* _packet, const sockaddr* _addr)
 	{
@@ -37,7 +59,7 @@ namespace CS260
 			send(mSocket, mBuffer.data(), sizeof(PacketHeader) + mPacketSize, 0); 
 
 		if (needsAck)
-			mUnacknowledgedMessages.push_back(mBuffer);		
+			mUnacknowledgedMessages.push_back(std::tuple< std::array<char, 8192>, unsigned,const sockaddr*>(mBuffer, 0, _addr));
 	}
 
 	void Protocol::RecievePacket(void* _payload, unsigned *_size, Packet_Types* _type, sockaddr * _addr)
@@ -88,10 +110,10 @@ namespace CS260
 			//in case it was an acknowledgement{
 			if (mHeader.mAck != 0) {
 
-				auto erased = std::erase_if(mUnacknowledgedMessages, [&](std::array<char, 8192> a) {
+				auto erased = std::erase_if(mUnacknowledgedMessages, [&](std::tuple<std::array<char, 8192>,unsigned, const sockaddr*> a) {
 
 					PacketHeader mThisHeader;
-					memcpy(&mThisHeader, a.data(), sizeof(mThisHeader));
+					memcpy(&mThisHeader, std::get<0>(a).data(), sizeof(mThisHeader));
 
 					if (mHeader.mAck == mThisHeader.mAck) {
 						return true; //we found the element we received the ack from

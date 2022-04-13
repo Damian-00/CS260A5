@@ -51,6 +51,8 @@ namespace CS260
 		mNewPlayersOnFrame.clear();
 		// Handle all the receive packets
 		ReceivePackets();
+
+		mProtocol.Tick();
 		
 
 		// TOOD: We may start the game with less than 4 players

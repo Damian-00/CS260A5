@@ -70,6 +70,8 @@ namespace CS260
 		//// TODO: Reset the counter properly
 		mNewPlayersOnFrame.clear();
 		ReceiveMessages();
+
+		mProtocol.Tick();
 		////mPlayersState.clear();
 
 		//PlayerInfo packet;
