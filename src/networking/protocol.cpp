@@ -102,7 +102,7 @@ namespace CS260
 				}
 				else {
 
-					int sent = send(mSocket, mBuffer.data(), sizeof(PacketHeader), 0);
+					int sent = send(mSocket, ackPack.data(), sizeof(PacketHeader), 0);
 				}
 			}
 
@@ -115,7 +115,7 @@ namespace CS260
 					PacketHeader mThisHeader;
 					memcpy(&mThisHeader, std::get<0>(a).data(), sizeof(mThisHeader));
 
-					if (mHeader.mAck == mThisHeader.mAck) {
+					if (mHeader.mAck == mThisHeader.mSeq) {
 						return true; //we found the element we received the ack from
 					}
 
