@@ -3,13 +3,14 @@
 
 namespace CS260
 {
-	ClientInfo::ClientInfo(sockaddr endpoint, PlayerInfo playerInfo):
+	ClientInfo::ClientInfo(sockaddr endpoint, PlayerInfo playerInfo, glm::vec4 col):
 		mEndpoint(endpoint),
 		mAliveTimer(0),
 		mDisconnecting(false),
 		mDisconnectTimeout(0),
 		mDisconnectTries(0),
-		mPlayerInfo(playerInfo)
+		mPlayerInfo(playerInfo),
+		color(col)
 	{
 	}
 
@@ -236,10 +237,13 @@ namespace CS260
 
 	void Server::HandleNewPlayerACKPacket(SYNACKPacket& packet, sockaddr& senderAddress)
 	{
+		glm::vec4 color = { ((double)rand() / (RAND_MAX)) + 1,((double)rand() / (RAND_MAX)) + 1,((double)rand() / (RAND_MAX)) + 1,((double)rand() / (RAND_MAX)) + 1 };
 		NewPlayerPacket newPlayerPacket;
 		newPlayerPacket.mPlayerInfo.mID = packet.mPlayerID;
 		newPlayerPacket.mPlayerInfo.pos = { 0,0 };
 		newPlayerPacket.mPlayerInfo.rot = 0;
+		newPlayerPacket.color = color;
+		
 
 		mNewPlayersOnFrame.push_back(newPlayerPacket);
 
@@ -262,9 +266,9 @@ namespace CS260
 		newPlayerPacket.mPlayerInfo.mID = packet.mPlayerID;
 		newPlayerPacket.mPlayerInfo.pos = { 0,0 };
 		newPlayerPacket.mPlayerInfo.rot = 0;
-		
+
 		// Add the new client to the players list
-		mClients.push_back(ClientInfo(senderAddress, newPlayerPacket.mPlayerInfo));
+		mClients.push_back(ClientInfo(senderAddress, newPlayerPacket.mPlayerInfo, color));
 	}
 	
 	void Server::CheckTimeoutPlayer()

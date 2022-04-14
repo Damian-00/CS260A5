@@ -2,6 +2,7 @@
 #include "networking.hpp"
 
 #include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 #include <vector>
 #include <queue>
@@ -65,6 +66,7 @@ namespace CS260 {
 	struct NewPlayerPacket
 	{
 		PlayerInfo mPlayerInfo;
+		glm::vec4 color;
 	};
 	struct ShipUpdatePacket
 	{

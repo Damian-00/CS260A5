@@ -10,7 +10,7 @@ namespace CS260
 {
 	struct ClientInfo
 	{
-		ClientInfo(sockaddr endpoint, PlayerInfo playerInfo);
+		ClientInfo(sockaddr endpoint, PlayerInfo playerInfo, glm::vec4 color);
 		
 		// Networking
 		sockaddr mEndpoint;
@@ -23,6 +23,7 @@ namespace CS260
 
 		// Player Information
 		PlayerInfo mPlayerInfo;
+		glm::vec4 color;
 	};
 	
 	const unsigned disconnectTries = 3; // In fact, there is a total of 4 tries because the first one is not counted

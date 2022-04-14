@@ -116,6 +116,7 @@ struct GameObjInst
     void*    pUserData; // pointer to custom data specific for each object type
     unsigned id;   
     bool inputPressed;
+    vec4 modColor = { 1.0f, 1.0f ,1.0f ,1.0f };
 };
 
 // ---------------------------------------------------------------------------
@@ -829,6 +830,7 @@ void GameStatePlayUpdate(void)
             for (auto& playerInfo : server->GetNewPlayers())
             {
 				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true)});
+                mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
             for (auto& player : server->GetPlayersInfo())
             {
@@ -879,6 +881,7 @@ void GameStatePlayUpdate(void)
             {
                 vec2 pos{ 20 * mRemoteShips.size(), 0 };
                 mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true) });
+                mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
 			
             for (auto& playerInfo : client->GetPlayersInfo())
@@ -940,6 +943,7 @@ void GameStatePlayDraw(void)
 
     char strBuffer[1024];
     mat4 tmp, tmpScale = glm::scale(glm::vec3{10, 10, 1});
+    vec4 col;
 
     // draw all object in the list
     for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
@@ -950,9 +954,11 @@ void GameStatePlayDraw(void)
 
         // if (pInst->pObject->type != TYPE_SHIP) continue;
         tmp = /*tmpScale * */ vp * sGameObjInstList[i].transform;
+        col = /*tmpScale * */ vp * sGameObjInstList[i].modColor;
 
         game::instance().shader_default()->use();
         game::instance().shader_default()->set_uniform(0, tmp);
+        game::instance().shader_default()->set_uniform(1, col * 255.0f);
         sGameObjInstList[i].pObject->pMesh->draw();
     }
     
@@ -1017,7 +1023,7 @@ static void loadGameObjList()
 
     {
         engine::mesh* mesh = new engine::mesh();
-        mesh->add_triangle(engine::gfx_triangle(-0.5f, -0.5f, 0xFFFF0000, 0.0f, 0.0f, 0.5f, 0.0f, 0xFFFFFFFF, 0.0f, 0.0f, -0.5f, 0.5f, 0xFFFF0000, 0.0f, 0.0f));
+        mesh->add_triangle(engine::gfx_triangle(-0.5f, -0.5f, 0xFFFFFFFF, 0.0f, 0.0f, 0.5f, 0.0f, 0xFFFFFFFF, 0.0f, 0.0f, -0.5f, 0.5f, 0xFFFFFFFF, 0.0f, 0.0f));
         mesh->create();
         pObj->pMesh = mesh;
         AE_ASSERT_MESG(pObj->pMesh, "fail to create object!!");

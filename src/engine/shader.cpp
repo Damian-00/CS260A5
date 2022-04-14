@@ -220,6 +220,11 @@ namespace engine {
         glUniform1i(loc, value);
     }
 
+    void shader::set_uniform(unsigned loc, vec4 value)
+    {
+        glUniform4f(loc, value.x, value.y, value.z, value.w);
+    }
+
     shader* shader_default_create()
     {
         shader* sh = new shader();
