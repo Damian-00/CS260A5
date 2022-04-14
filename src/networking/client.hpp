@@ -33,6 +33,7 @@ namespace CS260
 		std::vector<unsigned char> mDisconnectedPlayersIDs;
 		
 	public:
+		glm::vec4 color;
 
 		/*	\fn Client
 		\brief	Client default constructor

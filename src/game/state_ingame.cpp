@@ -116,7 +116,7 @@ struct GameObjInst
     void*    pUserData; // pointer to custom data specific for each object type
     unsigned id;   
     bool inputPressed;
-    vec4 modColor = { 1.0f, 1.0f ,1.0f ,1.0f };
+    vec4 modColor ;
 };
 
 // ---------------------------------------------------------------------------
@@ -857,8 +857,10 @@ void GameStatePlayUpdate(void)
         }		
         else
         {
-			if(client->Connected())
-                client->SendPlayerInfo(spShip->posCurr,spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
+            if (client->Connected())
+                client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
+            
+                spShip->modColor = client->color;
             client->Tick();
 			
             // First of all check if we need to disconnect any player
@@ -958,7 +960,7 @@ void GameStatePlayDraw(void)
 
         game::instance().shader_default()->use();
         game::instance().shader_default()->set_uniform(0, tmp);
-        game::instance().shader_default()->set_uniform(1, col * 255.0f);
+        game::instance().shader_default()->set_uniform(1, 255.0f*col );
         sGameObjInstList[i].pObject->pMesh->draw();
     }
     
@@ -1153,6 +1155,7 @@ GameObjInst* gameObjInstCreate(uint32_t type, float scale, vec2* pPos, vec2* pVe
             pInst->velCurr   = pVel ? *pVel : zero;
             pInst->dirCurr   = dir;
             pInst->pUserData = 0;
+            pInst->modColor = {1.0f,1.0f,1.0f,1.0f};
 
             // keep track the number of asteroid
             if (pInst->pObject->type == TYPE_ASTEROID)

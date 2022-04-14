@@ -87,6 +87,7 @@ namespace CS260 {
 	struct SYNACKPacket
 	{
 		unsigned char mPlayerID;
+		glm::vec4 color;
 	};
 	
 	struct PlayerDisconnectPacket

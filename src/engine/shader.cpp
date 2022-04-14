@@ -14,13 +14,14 @@ namespace {
         layout(location = 1) in vec4 attr_color;
 
         layout(location = 0) uniform mat4 uniform_mvp;
+        layout(location = 1) uniform vec4 mod_color;
 
         out vec4 var_color;
 
         void main()
         {
             vec4 vertex = vec4(attr_position, 0.0f, 1.0f);
-            var_color   = attr_color;
+            var_color   = attr_color * mod_color;
             gl_Position = uniform_mvp * vertex;
         }
     )";

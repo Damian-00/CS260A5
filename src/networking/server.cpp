@@ -185,6 +185,10 @@ namespace CS260
 			PrintMessage("Received SYNACK");
 			SYNACKPacket SYNACKpacket;
 			SYNACKpacket.mPlayerID = mCurrentID++;
+
+			glm::vec4 color(((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), 1.0f);
+			SYNACKpacket.color = color;
+
 			PrintMessage("Sending SYNACK to client with id " + std::to_string(static_cast<int>(SYNACKpacket.mPlayerID)));
 			mProtocol.SendPacket(Packet_Types::SYNACK, &SYNACKpacket, &senderAddress);
 		}			
@@ -237,12 +241,11 @@ namespace CS260
 
 	void Server::HandleNewPlayerACKPacket(SYNACKPacket& packet, sockaddr& senderAddress)
 	{
-		glm::vec4 color = { ((double)rand() / (RAND_MAX)) + 1,((double)rand() / (RAND_MAX)) + 1,((double)rand() / (RAND_MAX)) + 1,((double)rand() / (RAND_MAX)) + 1 };
 		NewPlayerPacket newPlayerPacket;
 		newPlayerPacket.mPlayerInfo.mID = packet.mPlayerID;
 		newPlayerPacket.mPlayerInfo.pos = { 0,0 };
 		newPlayerPacket.mPlayerInfo.rot = 0;
-		newPlayerPacket.color = color;
+		newPlayerPacket.color = packet.color;
 		
 
 		mNewPlayersOnFrame.push_back(newPlayerPacket);
@@ -260,6 +263,7 @@ namespace CS260
 			newPlayerPacket.mPlayerInfo.mID = client.mPlayerInfo.mID;
 			newPlayerPacket.mPlayerInfo.pos = client.mPlayerInfo.pos;
 			newPlayerPacket.mPlayerInfo.rot = client.mPlayerInfo.rot;
+			newPlayerPacket.color = client.color;
 			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &senderAddress);
 		}
 
@@ -268,7 +272,7 @@ namespace CS260
 		newPlayerPacket.mPlayerInfo.rot = 0;
 
 		// Add the new client to the players list
-		mClients.push_back(ClientInfo(senderAddress, newPlayerPacket.mPlayerInfo, color));
+		mClients.push_back(ClientInfo(senderAddress, newPlayerPacket.mPlayerInfo, packet.color));
 	}
 	
 	void Server::CheckTimeoutPlayer()

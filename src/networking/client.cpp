@@ -263,10 +263,12 @@ namespace CS260
 			break;
 		case Packet_Types::SYNACK:
 		{
+			PrintMessage("Received SYNACK code");
 			// Copy the payload into a more manageable structure
 			SYNACKPacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			mID = receivedPacket.mPlayerID;
+			color = receivedPacket.color;
 			// TODO: Send connection ACK properly
 			mProtocol.SendPacket(SYNACK, &receivedPacket, 0);
 			mConnected = true;
