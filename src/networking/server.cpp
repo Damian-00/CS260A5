@@ -114,9 +114,9 @@ namespace CS260
 	{
 		ShipUpdatePacket mPacket;
 		mPacket.mPlayerInfo = _playerinfo;
-		
-		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
 
+		PrintMessage("Sending player info with id " + std::to_string(static_cast<int>(_playerinfo.mID)));
+		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
 	}
 
 	void Server::ReceivePackets()
@@ -181,8 +181,10 @@ namespace CS260
 			break;
 		case Packet_Types::SYN:
 		{
+			PrintMessage("Received SYNACK");
 			SYNACKPacket SYNACKpacket;
 			SYNACKpacket.mPlayerID = mCurrentID++;
+			PrintMessage("Sending SYNACK to client with id " + std::to_string(static_cast<int>(SYNACKpacket.mPlayerID)));
 			mProtocol.SendPacket(Packet_Types::SYNACK, &SYNACKpacket, &senderAddress);
 		}			
 			break;
@@ -241,11 +243,16 @@ namespace CS260
 
 		mNewPlayersOnFrame.push_back(newPlayerPacket);
 
+		PrintMessage("Notifying current clients of new player");
+		PrintMessage("New client id" + std::to_string(static_cast<int>(packet.mPlayerID)));
+
 		for (auto& client : mClients)
 			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &client.mEndpoint);
 
+		PrintMessage("Sending current clients information");
 		for (auto& client : mClients)
 		{
+			PrintMessage("Sending client with id" + std::to_string(static_cast<int>(client.mPlayerInfo.mID)));
 			newPlayerPacket.mPlayerInfo.mID = client.mPlayerInfo.mID;
 			newPlayerPacket.mPlayerInfo.pos = client.mPlayerInfo.pos;
 			newPlayerPacket.mPlayerInfo.rot = client.mPlayerInfo.rot;
