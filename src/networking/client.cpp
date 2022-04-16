@@ -1,4 +1,6 @@
 #include "client.hpp"
+#include "client.hpp"
+#include "client.hpp"
 
 
 #include "utils.hpp"
@@ -74,6 +76,8 @@ namespace CS260
 		//// TODO: Reset the counter properly
 		mNewPlayersOnFrame.clear();
 		mDisconnectedPlayersIDs.clear();
+		mAsteroidsCreated.clear();
+
 		ReceiveMessages();
 		mProtocol.Tick();
 		HandleTimeOut();
@@ -263,10 +267,12 @@ namespace CS260
 			break;
 		case Packet_Types::SYNACK:
 		{
+			PrintMessage("Received SYNACK code");
 			// Copy the payload into a more manageable structure
 			SYNACKPacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			mID = receivedPacket.mPlayerID;
+			mColor = receivedPacket.color;
 			// TODO: Send connection ACK properly
 			mProtocol.SendPacket(SYNACK, &receivedPacket, 0);
 			mConnected = true;
@@ -302,6 +308,13 @@ namespace CS260
 			mDisconnectedPlayersIDs.push_back(receivedPacket.mPlayerID);
 		}
 		break;
+		case Packet_Types::AsteroidCreation:
+		{
+			AsteroidCreationPacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			mAsteroidsCreated.push_back(receivedPacket);
+		}
+			break;
 		}
 	}
 
@@ -460,6 +473,16 @@ namespace CS260
 	const std::vector<unsigned char>& Client::GetDisconnectedPlayersIDs()
 	{
 		return mDisconnectedPlayersIDs;
+	}
+
+	const std::vector<AsteroidCreationPacket>& Client::GetCreatedAsteroids()
+	{
+		return mAsteroidsCreated;
+	}
+
+	glm::vec4 Client::GetColor()
+	{
+		return mColor;
 	}
 
 }

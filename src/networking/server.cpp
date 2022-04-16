@@ -1,15 +1,18 @@
 #include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
 #include "utils.hpp"
 
 namespace CS260
 {
-	ClientInfo::ClientInfo(sockaddr endpoint, PlayerInfo playerInfo):
+	ClientInfo::ClientInfo(sockaddr endpoint, PlayerInfo playerInfo, glm::vec4 col):
 		mEndpoint(endpoint),
 		mAliveTimer(0),
 		mDisconnecting(false),
 		mDisconnectTimeout(0),
 		mDisconnectTries(0),
-		mPlayerInfo(playerInfo)
+		mPlayerInfo(playerInfo),
+		color(col)
 	{
 	}
 
@@ -47,6 +50,8 @@ namespace CS260
 		SetSocketBlocking(mSocket, false);
 
 		mProtocol.SetSocket(mSocket);
+
+		srand(time(0));
 	}
 
 	Server::~Server()
@@ -119,6 +124,33 @@ namespace CS260
 		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
 	}
 
+	void Server::SendAsteroidCreation(unsigned short id, glm::vec2 position, glm::vec2 velocity, float scale, float angle)
+	{
+		AsteroidCreationPacket packet;
+		packet.mObjectID = id;
+		packet.mScale = scale;
+		packet.mAngle = angle;
+		packet.mPosition = position;
+		packet.mVelocity = velocity;
+
+		for (auto& client : mClients)
+			mProtocol.SendPacket(Packet_Types::AsteroidCreation, &packet, &client.mEndpoint);
+		mAliveAsteroids.push_back(packet);
+	}
+
+	void Server::UpdateAsteroid(unsigned short id, glm::vec2 position, glm::vec2 velocity)
+	{
+		for (auto& asteroid : mAliveAsteroids)
+		{
+			if (asteroid.mObjectID == id)
+			{
+				asteroid.mPosition = position;
+				asteroid.mVelocity = velocity;
+				return;
+			}
+		}
+	}
+
 	void Server::ReceivePackets()
 	{
 		sockaddr senderAddres;
@@ -184,6 +216,10 @@ namespace CS260
 			PrintMessage("Received SYNACK");
 			SYNACKPacket SYNACKpacket;
 			SYNACKpacket.mPlayerID = mCurrentID++;
+
+			glm::vec4 color(((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), 1.0f);
+			SYNACKpacket.color = color;
+
 			PrintMessage("Sending SYNACK to client with id " + std::to_string(static_cast<int>(SYNACKpacket.mPlayerID)));
 			mProtocol.SendPacket(Packet_Types::SYNACK, &SYNACKpacket, &senderAddress);
 		}			
@@ -240,31 +276,41 @@ namespace CS260
 		newPlayerPacket.mPlayerInfo.mID = packet.mPlayerID;
 		newPlayerPacket.mPlayerInfo.pos = { 0,0 };
 		newPlayerPacket.mPlayerInfo.rot = 0;
+		newPlayerPacket.color = packet.color;
+		
 
 		mNewPlayersOnFrame.push_back(newPlayerPacket);
 
 		PrintMessage("Notifying current clients of new player");
 		PrintMessage("New client id" + std::to_string(static_cast<int>(packet.mPlayerID)));
 
+		// Send to the current clients the information of the new client
 		for (auto& client : mClients)
 			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &client.mEndpoint);
 
 		PrintMessage("Sending current clients information");
+
+		// Send to the new client the information of the current clients
 		for (auto& client : mClients)
 		{
 			PrintMessage("Sending client with id" + std::to_string(static_cast<int>(client.mPlayerInfo.mID)));
 			newPlayerPacket.mPlayerInfo.mID = client.mPlayerInfo.mID;
 			newPlayerPacket.mPlayerInfo.pos = client.mPlayerInfo.pos;
 			newPlayerPacket.mPlayerInfo.rot = client.mPlayerInfo.rot;
+			newPlayerPacket.color = client.color;
 			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &senderAddress);
 		}
+
+		// Send to the new client the information of the current asteroids
+		for (auto& asteroid : mAliveAsteroids)
+			mProtocol.SendPacket(Packet_Types::AsteroidCreation, &asteroid, &senderAddress);
 
 		newPlayerPacket.mPlayerInfo.mID = packet.mPlayerID;
 		newPlayerPacket.mPlayerInfo.pos = { 0,0 };
 		newPlayerPacket.mPlayerInfo.rot = 0;
-		
+
 		// Add the new client to the players list
-		mClients.push_back(ClientInfo(senderAddress, newPlayerPacket.mPlayerInfo));
+		mClients.push_back(ClientInfo(senderAddress, newPlayerPacket.mPlayerInfo, packet.color));
 	}
 	
 	void Server::CheckTimeoutPlayer()

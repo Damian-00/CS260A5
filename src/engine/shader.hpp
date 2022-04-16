@@ -14,6 +14,7 @@ namespace engine {
         void destroy();
         void set_uniform(unsigned loc, mat4 const& value);
         void set_uniform(unsigned loc, int value);
+        void set_uniform(unsigned loc, vec4 value);
     };
 
     shader* shader_default_create();
