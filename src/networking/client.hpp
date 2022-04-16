@@ -31,9 +31,10 @@ namespace CS260
 		std::vector<NewPlayerPacket> mNewPlayersOnFrame;
 		std::vector<PlayerInfo> mPlayersState;
 		std::vector<unsigned char> mDisconnectedPlayersIDs;
+		std::vector<AsteroidCreationPacket> mAsteroidsCreated;
+		glm::vec4 mColor;
 		
 	public:
-		glm::vec4 color;
 
 		/*	\fn Client
 		\brief	Client default constructor
@@ -60,6 +61,10 @@ namespace CS260
 		void NotifyDisconnection();
 
 		const std::vector<unsigned char>& GetDisconnectedPlayersIDs();
+
+		const std::vector<AsteroidCreationPacket>& GetCreatedAsteroids();
+
+		glm::vec4 GetColor();
 
 	private:
 		/*	\fn ConnectToServer

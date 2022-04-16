@@ -28,8 +28,9 @@ namespace CS260 {
 		SYNACK,
 		NewPlayer,
 		PlayerDisconnect,
-		ACKDisconnect		,
-		NotifyPlayerDisconnection
+		ACKDisconnect,
+		NotifyPlayerDisconnection,
+		AsteroidCreation
 	};
 
 	
@@ -52,6 +53,14 @@ namespace CS260 {
 		glm::vec2 mObjectPos;
 		glm::vec2 mObjectVel;
 		
+	};
+	struct AsteroidCreationPacket
+	{
+		unsigned short mObjectID;
+		float mScale;
+		float mAngle;
+		glm::vec2 mPosition;
+		glm::vec2 mVelocity;
 	};
 
 	struct PlayerInfo

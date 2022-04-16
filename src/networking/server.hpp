@@ -39,6 +39,7 @@ namespace CS260
 		std::vector<NewPlayerPacket> mNewPlayersOnFrame;
 		
 		std::vector<unsigned char> mDisconnectedPlayersIDs;
+		std::vector<AsteroidCreationPacket> mAliveAsteroids;
 
 	public:
 		/*	\fn Server
@@ -62,6 +63,10 @@ namespace CS260
 		const std::vector<unsigned char>& GetDisconnectedPlayersIDs();
 
 		void SendPlayerInfo(sockaddr _endpoint, PlayerInfo _playerinfo);
+
+		void SendAsteroidCreation(unsigned short id, glm::vec2 position, glm::vec2 velocity, float scale, float angle);
+
+		void UpdateAsteroid(unsigned short id, glm::vec2 position, glm::vec2 velocity);
 
 	private:
 

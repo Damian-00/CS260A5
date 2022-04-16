@@ -1,4 +1,6 @@
 #include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
 #include "utils.hpp"
 
 namespace CS260
@@ -48,6 +50,8 @@ namespace CS260
 		SetSocketBlocking(mSocket, false);
 
 		mProtocol.SetSocket(mSocket);
+
+		srand(time(0));
 	}
 
 	Server::~Server()
@@ -118,6 +122,33 @@ namespace CS260
 
 		PrintMessage("Sending player info with id " + std::to_string(static_cast<int>(_playerinfo.mID)));
 		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
+	}
+
+	void Server::SendAsteroidCreation(unsigned short id, glm::vec2 position, glm::vec2 velocity, float scale, float angle)
+	{
+		AsteroidCreationPacket packet;
+		packet.mObjectID = id;
+		packet.mScale = scale;
+		packet.mAngle = angle;
+		packet.mPosition = position;
+		packet.mVelocity = velocity;
+
+		for (auto& client : mClients)
+			mProtocol.SendPacket(Packet_Types::AsteroidCreation, &packet, &client.mEndpoint);
+		mAliveAsteroids.push_back(packet);
+	}
+
+	void Server::UpdateAsteroid(unsigned short id, glm::vec2 position, glm::vec2 velocity)
+	{
+		for (auto& asteroid : mAliveAsteroids)
+		{
+			if (asteroid.mObjectID == id)
+			{
+				asteroid.mPosition = position;
+				asteroid.mVelocity = velocity;
+				return;
+			}
+		}
 	}
 
 	void Server::ReceivePackets()
@@ -253,10 +284,13 @@ namespace CS260
 		PrintMessage("Notifying current clients of new player");
 		PrintMessage("New client id" + std::to_string(static_cast<int>(packet.mPlayerID)));
 
+		// Send to the current clients the information of the new client
 		for (auto& client : mClients)
 			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &client.mEndpoint);
 
 		PrintMessage("Sending current clients information");
+
+		// Send to the new client the information of the current clients
 		for (auto& client : mClients)
 		{
 			PrintMessage("Sending client with id" + std::to_string(static_cast<int>(client.mPlayerInfo.mID)));
@@ -266,6 +300,10 @@ namespace CS260
 			newPlayerPacket.color = client.color;
 			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &senderAddress);
 		}
+
+		// Send to the new client the information of the current asteroids
+		for (auto& asteroid : mAliveAsteroids)
+			mProtocol.SendPacket(Packet_Types::AsteroidCreation, &asteroid, &senderAddress);
 
 		newPlayerPacket.mPlayerInfo.mID = packet.mPlayerID;
 		newPlayerPacket.mPlayerInfo.pos = { 0,0 };

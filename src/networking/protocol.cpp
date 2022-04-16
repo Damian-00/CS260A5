@@ -181,6 +181,10 @@ namespace CS260
 			packetSize = sizeof(PlayerDisconnectPacket);
 			needsACK = true;
 			break;
+		case Packet_Types::AsteroidCreation:
+			packetSize = sizeof(AsteroidCreationPacket);
+			needsACK = true;
+			break;
 		}
 		
 		if(needsACKPtr)
