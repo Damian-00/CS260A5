@@ -12,6 +12,7 @@
 #include "networking/utils.hpp" // networking utils
 #include "networking/client.hpp" // networking utils
 #include "networking/server.hpp" // networking utils
+#include "networking/protocol.hpp" // networking utils
 
 // ---------------------------------------------------------------------------
 // Defines
@@ -116,6 +117,9 @@ struct GameObjInst
     void*    pUserData; // pointer to custom data specific for each object type
     unsigned id;   
     bool inputPressed;
+
+    // Networking variables
+    vec4 modColor ;
     unsigned mOwnerID;
 };
 
@@ -143,6 +147,7 @@ static uint32_t sGameObjNum;
 // list of object instances
 static GameObjInst sGameObjInstList[GAME_OBJ_INST_NUM_MAX];
 static uint32_t    sGameObjInstNum;
+static unsigned short sLastGeneratedID = 0;
 
 // pointer ot the ship object
 static GameObjInst* spShip;
@@ -153,6 +158,8 @@ struct RemoteShipInfo
 {
     unsigned char mPlayerID;
     GameObjInst* mShipInstance;
+    uint32_t mScore;
+    long mShipsLeft;
 };
 
 static std::vector<RemoteShipInfo> mRemoteShips;
@@ -198,11 +205,13 @@ static CS260::Client* client = nullptr;
 static void loadGameObjList();
 
 // function to create/destroy a game object object
-static GameObjInst* gameObjInstCreate(uint32_t type, float scale, vec2* pPos, vec2* pVel, float dir, bool forceCreate);
+static GameObjInst* gameObjInstCreate(uint32_t type, float scale, vec2* pPos, vec2* pVel, float dir, bool forceCreate, unsigned id);
 static void         gameObjInstDestroy(GameObjInst* pInst);
 
 // function to create asteroid
-static GameObjInst* astCreate(GameObjInst* pSrc);
+//static GameObjInst* astCreate(GameObjInst* pSrc);
+static GameObjInst* astCreateClient(const CS260::AsteroidCreationPacket& asteroidInfo);
+static GameObjInst* astCreateServer(GameObjInst* pSrc);
 
 // function to calculate the object's velocity after collison
 static void resolveCollision(GameObjInst* pSrc, GameObjInst* pDst, vec2* pNrm);
@@ -244,7 +253,7 @@ void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port,
         server = new CS260::Server(verbose, address, port);
     else
         client = new CS260::Client(address, port, verbose);
-	
+
     // reset the number of current asteroid and the total allowed
     sAstCtr = 0;
     sAstNum = AST_NUM_MIN;
@@ -252,7 +261,7 @@ void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port,
     if (!serverIs)
     {
         // create the main ship
-        spShip = gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, 0, 0, 0.0f, true);
+        spShip = gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, 0, 0, 0.0f, true, 0);
         assert(spShip);
     }
 
@@ -260,8 +269,11 @@ void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port,
     sAstCreationTime = game::instance().game_time();
 
     // generate the initial asteroid
-    //for (uint32_t i = 0; i < sAstNum; i++)
-    //    astCreate(0);
+    if (is_server)
+    {
+        for (uint32_t i = 0; i < sAstNum; i++)
+            astCreateServer(0);
+    }
 
     // reset the score and the number of ship
     sScore      = 0;
@@ -359,6 +371,7 @@ void GameStatePlayUpdate(void)
             vel = {glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr)};
             vel = vel * BULLET_SPEED;
 
+            gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &spShip->posCurr, &vel, spShip->dirCurr, true, 0);
             
             if (!is_server) {
 
@@ -382,7 +395,7 @@ void GameStatePlayUpdate(void)
             // if no bomb is active currently, create one
             if (i == GAME_OBJ_INST_NUM_MAX) {
                 sSpecialCtr -= BOMB_COST;
-                gameObjInstCreate(TYPE_BOMB, BOMB_SIZE, &spShip->posCurr, 0, 0, true);
+                gameObjInstCreate(TYPE_BOMB, BOMB_SIZE, &spShip->posCurr, 0, 0, true, 0);
             }
         }
         // if 'x' pressed
@@ -397,21 +410,23 @@ void GameStatePlayUpdate(void)
             pos = pos * spShip->scale * 0.5f;
             pos = pos + spShip->posCurr;
 
-            gameObjInstCreate(TYPE_MISSILE, 1.0f, &pos, &vel, dir, true);
+            gameObjInstCreate(TYPE_MISSILE, 1.0f, &pos, &vel, dir, true, 0);
         }
     }
 
     // ==================================
     // create new asteroids if necessary
     // ==================================
+    if (is_server)
+    {
+        if ((sAstCtr < sAstNum) &&
+            ((game::instance().game_time() - sAstCreationTime) > AST_CREATE_DELAY)) {
+            // keep track the last time an asteroid is created
+            sAstCreationTime = game::instance().game_time();
 
-    if ((sAstCtr < sAstNum) &&
-        ((game::instance().game_time() - sAstCreationTime) > AST_CREATE_DELAY)) {
-        // keep track the last time an asteroid is created
-        sAstCreationTime = game::instance().game_time();
-
-        // create an asteroid
-        //astCreate(0);
+            // create an asteroid
+            astCreateServer(0);
+        }
     }
 
     // ===============
@@ -435,6 +450,22 @@ void GameStatePlayUpdate(void)
     // update objects
     // ===============
 
+    // Update the ship position manually only if we are a client
+    if (spShip)
+    {
+        // warp the ship from one end of the screen to the other
+        spShip->posCurr.x = wrap(spShip->posCurr.x, gAEWinMinX - SHIP_SIZE, gAEWinMaxX + SHIP_SIZE);
+        spShip->posCurr.y = wrap(spShip->posCurr.y, gAEWinMinY - SHIP_SIZE, gAEWinMaxY + SHIP_SIZE);
+    }
+
+    // Add all the existing ships to this vector to do some math with asteroids
+    std::vector<GameObjInst*> currentShips;
+    if (spShip)
+        currentShips.push_back(spShip);
+
+    for (auto& remoteShip : mRemoteShips)
+        currentShips.push_back(remoteShip.mShipInstance);
+
     for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
         GameObjInst* pInst = sGameObjInstList + i;
 
@@ -442,38 +473,41 @@ void GameStatePlayUpdate(void)
         if ((pInst->flag & FLAG_ACTIVE) == 0)
             continue;
 
-        // TODO: Execute ship update ONLY to our ship. The position from the rest of the ships will be handled by the server
-        // and sent to us somehow.
-        //
-        // spShip->wrap
-        //
-         
-        // check if the object is a ship
-        if (pInst->pObject->type == TYPE_SHIP) {
-            // warp the ship from one end of the screen to the other
-            pInst->posCurr.x = wrap(pInst->posCurr.x, gAEWinMinX - SHIP_SIZE, gAEWinMaxX + SHIP_SIZE);
-            pInst->posCurr.y = wrap(pInst->posCurr.y, gAEWinMinY - SHIP_SIZE, gAEWinMaxY + SHIP_SIZE);
-        }
-
         // TODO: We may execute the asteroid update in the client, and if we receive a position from the server override it.
 
         // check if the object is an asteroid
-        else if (pInst->pObject->type == TYPE_ASTEROID) {
+        if (pInst->pObject->type == TYPE_ASTEROID) 
+        {
             vec2  u;
             float uLen;
 
             // warp the asteroid from one end of the screen to the other
             pInst->posCurr.x = wrap(pInst->posCurr.x, gAEWinMinX - AST_SIZE_MAX, gAEWinMaxX + AST_SIZE_MAX);
             pInst->posCurr.y = wrap(pInst->posCurr.y, gAEWinMinY - AST_SIZE_MAX, gAEWinMaxY + AST_SIZE_MAX);
-
-            // TODO: Pull the asteroid toward the nearest ship
+                        
+            // If there are ships curently on screen
+            if (currentShips.size() > 0)
+            {
+                GameObjInst* nearestShip = nullptr;
+                // This does not compile so use the old approach
+                //float minDistance = std::numeric_limits<float>::max();
+                float minDistance = FLT_MAX;
             
-            // pull the asteroid toward the ship a little bit
-            if (spShip) {
+                for (auto& ship : currentShips)
+                {
+                    float distance = glm::distance2(ship->posCurr, pInst->posCurr);
+                    if (distance < minDistance)
+                    {
+                        minDistance = distance;
+                        nearestShip = ship;
+                    }
+                }
+            
+                // pull the asteroid toward the nearest ship a little bit
                 // apply acceleration propotional to the distance from the asteroid to
                 // the ship
-                u              = spShip->posCurr - pInst->posCurr;
-                u              = u * AST_TO_SHIP_ACC * dt;
+                u = nearestShip->posCurr - pInst->posCurr;
+                u = u * AST_TO_SHIP_ACC * dt;
                 pInst->velCurr = pInst->velCurr + u;
             }
 
@@ -603,7 +637,7 @@ void GameStatePlayUpdate(void)
     // ====================
     // check for collision
     // ====================
-#if 1
+#if 0
     for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
         GameObjInst* pSrc = sGameObjInstList + i;
 
@@ -839,8 +873,11 @@ void GameStatePlayUpdate(void)
             // We added a new player
             for (auto& playerInfo : server->GetNewPlayers())
             {
-				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true)});
+				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, 3});
+                mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
+
+            // Update the player information
             for (auto& player : server->GetPlayersInfo())
             {
 
@@ -855,19 +892,30 @@ void GameStatePlayUpdate(void)
                         ship.mShipInstance->inputPressed = player.mPlayerInfo.inputPressed;
                     }
                     else { // not that player ship
-
                         server->SendPlayerInfo(player.mEndpoint, { ship.mPlayerID, ship.mShipInstance->posCurr, ship.mShipInstance->dirCurr, ship.mShipInstance->velCurr, ship.mShipInstance->inputPressed });
-
                     }
-                     
-                   
+                }
+            }
+
+            // Update the asteroids information
+            for (auto& obj : sGameObjInstList)
+            {
+                if (obj.pObject != nullptr)
+                {
+                    if (obj.pObject->type == TYPE_ASTEROID)
+                    {
+                        server->UpdateAsteroid(obj.id, obj.posCurr, obj.velCurr);
+                    }
                 }
             }
         }		
         else
         {
-			if(client->Connected())
-                client->SendPlayerInfo(spShip->posCurr,spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
+            if (client->Connected())
+                client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
+            
+                spShip->modColor = client->GetColor();
+
             client->Tick();
 			
             // First of all check if we need to disconnect any player
@@ -886,12 +934,15 @@ void GameStatePlayUpdate(void)
                     });
             }
 
+            // Check if any new player connected
             for(auto& playerInfo : client->GetNewPlayers())
             {
-                vec2 pos{ 20 * mRemoteShips.size(), 0 };
-                mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true) });
+                vec2 pos{ 0, 0 };
+                mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true, 0) });
+                mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
 			
+            // Update the current players
             for (auto& playerInfo : client->GetPlayersInfo())
             {
                 for (auto& ship : mRemoteShips)
@@ -902,8 +953,9 @@ void GameStatePlayUpdate(void)
                         ship.mShipInstance->dirCurr = playerInfo.rot;
                         ship.mShipInstance->velCurr = playerInfo.vel;
                         ship.mShipInstance->inputPressed = playerInfo.inputPressed;
-                        if (ship.mShipInstance->inputPressed) {
 
+                        if (ship.mShipInstance->inputPressed) 
+                        {
                             vec2 pos, dir;
                             dir = { glm::cos(ship.mShipInstance->dirCurr), glm::sin(ship.mShipInstance->dirCurr) };
                             pos = dir;
@@ -913,10 +965,15 @@ void GameStatePlayUpdate(void)
                             pos = pos + ship.mShipInstance->posCurr;
 
                             sparkCreate(PTCL_EXHAUST, &pos, 2, ship.mShipInstance->dirCurr + 0.8f * PI, ship.mShipInstance->dirCurr + 1.2f * PI);
-
                         }
                     }
                 }
+            }
+
+            // Create asteroids
+            for (auto& asteroid : client->GetCreatedAsteroids())
+            {
+                astCreateClient(asteroid);
             }
 
 			// Handle window about to clsoe
@@ -951,6 +1008,7 @@ void GameStatePlayDraw(void)
 
     char strBuffer[1024];
     mat4 tmp, tmpScale = glm::scale(glm::vec3{10, 10, 1});
+    vec4 col;
 
     // draw all object in the list
     for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
@@ -961,9 +1019,11 @@ void GameStatePlayDraw(void)
 
         // if (pInst->pObject->type != TYPE_SHIP) continue;
         tmp = /*tmpScale * */ vp * sGameObjInstList[i].transform;
+        col = /*tmpScale * */ vp * sGameObjInstList[i].modColor;
 
         game::instance().shader_default()->use();
         game::instance().shader_default()->set_uniform(0, tmp);
+        game::instance().shader_default()->set_uniform(1, 255.0f*col );
         sGameObjInstList[i].pObject->pMesh->draw();
     }
     
@@ -972,17 +1032,47 @@ void GameStatePlayDraw(void)
     auto h = gAEWinMaxY - gAEWinMinY;
     vp = glm::ortho(float(0), float(gAEWinMaxX - gAEWinMinX), float(0), float(h), 0.01f, 100.0f) * glm::lookAt(vec3(0, 0, 10), vec3(0, 0, 0), vec3(0, 1, 0));
 
-    sprintf(strBuffer, "Score: %d", sScore);
-    game::instance().font_default()->render(strBuffer, 10, h-10, 24, vp);
+    if (is_server)
+    {
+        const unsigned totalShips = mRemoteShips.size();
 
-    sprintf(strBuffer, "Level: %d", glm::log2<uint32_t>(sAstNum));
-    game::instance().font_default()->render(strBuffer, 10, h-30, 24, vp);
+        for(unsigned i = 0 ; i < totalShips ; ++i)
+        {
+            sprintf(strBuffer, "Player#: %d", i + 1);
+            game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance->modColor);
 
-    sprintf(strBuffer, "Ship Left: %d", sShipCtr >= 0 ? sShipCtr : 0);
-    game::instance().font_default()->render(strBuffer, 600, h-10, 24, vp);
+            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
+            game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance->modColor);
 
-    sprintf(strBuffer, "Special:   %d", sSpecialCtr);
-    game::instance().font_default()->render(strBuffer, 600, h-30, 24, vp);
+            sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
+            game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+        }
+    }
+    else
+    {
+        const unsigned totalShips = mRemoteShips.size() + 1;
+
+        sprintf(strBuffer, "Player#: %d", 1);
+        game::instance().font_default()->render(strBuffer, 0, h - 10, 24, vp, spShip->modColor);
+
+        sprintf(strBuffer, "Ships Left: %d", sShipCtr >= 0 ? sShipCtr : 0);
+        game::instance().font_default()->render(strBuffer, 0, h - 35, 24, vp, spShip->modColor);
+
+        sprintf(strBuffer, "Score#: %d", sScore);
+        game::instance().font_default()->render(strBuffer, 0, h - 60, 24, vp, spShip->modColor);
+
+        for (unsigned i = 0; i < mRemoteShips.size(); ++i)
+        {
+            sprintf(strBuffer, "Player#: %d", i + 2);
+            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+
+            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
+            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+
+            sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
+            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+        }
+    }
 
     // display the game over message
     if (sShipCtr < 0)
@@ -1028,7 +1118,7 @@ static void loadGameObjList()
 
     {
         engine::mesh* mesh = new engine::mesh();
-        mesh->add_triangle(engine::gfx_triangle(-0.5f, -0.5f, 0xFFFF0000, 0.0f, 0.0f, 0.5f, 0.0f, 0xFFFFFFFF, 0.0f, 0.0f, -0.5f, 0.5f, 0xFFFF0000, 0.0f, 0.0f));
+        mesh->add_triangle(engine::gfx_triangle(-0.5f, -0.5f, 0xFFFFFFFF, 0.0f, 0.0f, 0.5f, 0.0f, 0xFFFFFFFF, 0.0f, 0.0f, -0.5f, 0.5f, 0xFFFFFFFF, 0.0f, 0.0f));
         mesh->create();
         pObj->pMesh = mesh;
         AE_ASSERT_MESG(pObj->pMesh, "fail to create object!!");
@@ -1137,7 +1227,7 @@ static void loadGameObjList()
 
 // ---------------------------------------------------------------------------
 
-GameObjInst* gameObjInstCreate(uint32_t type, float scale, vec2* pPos, vec2* pVel, float dir, bool forceCreate)
+GameObjInst* gameObjInstCreate(uint32_t type, float scale, vec2* pPos, vec2* pVel, float dir, bool forceCreate, unsigned id)
 {
     vec2 zero = {0.0f, 0.0f};
 
@@ -1158,6 +1248,9 @@ GameObjInst* gameObjInstCreate(uint32_t type, float scale, vec2* pPos, vec2* pVe
             pInst->velCurr   = pVel ? *pVel : zero;
             pInst->dirCurr   = dir;
             pInst->pUserData = 0;
+            pInst->modColor = {1.0f,1.0f,1.0f,1.0f};
+            pInst->id = id;
+
 
             // keep track the number of asteroid
             if (pInst->pObject->type == TYPE_ASTEROID)
@@ -1226,13 +1319,62 @@ void gameObjInstDestroy(GameObjInst* pInst)
 
 // ---------------------------------------------------------------------------
 
+GameObjInst* astCreateClient(const CS260::AsteroidCreationPacket& asteroidInfo)
+{
+    GameObjInst* pInst;
+    glm::vec2 pos = asteroidInfo.mPosition;
+    glm::vec2 vel = asteroidInfo.mVelocity;
+    pInst = gameObjInstCreate(TYPE_ASTEROID, asteroidInfo.mScale, &pos, &vel, 0.0f, true, asteroidInfo.mObjectID);
+
+    return pInst;
+}
+
+GameObjInst* astCreateServer(GameObjInst* pSrc)
+{
+    GameObjInst* pInst;
+    vec2         pos, vel;
+    float        t, angle, size;
+
+    {
+        // pick a random angle and velocity magnitude
+        angle = frand() * 2.0f * PI;
+        size = frand() * (AST_SIZE_MAX - AST_SIZE_MIN) + AST_SIZE_MIN;
+
+        if ((t = frand()) < 0.5f)
+            pos = { gAEWinMinX + (t * 2.0f) * (gAEWinMaxX - gAEWinMinX), gAEWinMinY - size * 0.5f };
+        else
+            pos = { gAEWinMinX - size * 0.5f, gAEWinMinY + ((t - 0.5f) * 2.0f) * (gAEWinMaxY - gAEWinMinY) };
+
+        // calculate the velocity vector
+        vel = { glm::cos(angle), glm::sin(angle) };
+        vel = vel * frand() * (AST_VEL_MAX - AST_VEL_MIN) + AST_VEL_MIN;
+    }
+
+    // create the object instance
+    // TODO: Create asterorid from networking
+    pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true, sLastGeneratedID++);
+    assert(pInst);
+
+    // set the life based on the size
+    pInst->life = size / AST_SIZE_MAX * AST_LIFE_MAX;
+
+    // NETWORKING
+
+    unsigned short id = pInst->id;
+
+    server->SendAsteroidCreation(id, pos, vel, size, angle);
+
+    return pInst;
+}
 GameObjInst* astCreate(GameObjInst* pSrc)
 {
     GameObjInst* pInst;
     vec2         pos, vel;
     float        t, angle, size;
 
-    if (pSrc) {
+    // Only when the asteroid is destroyed
+    if (pSrc) 
+    {
         float posOffset = pSrc->scale * 0.25f;
         float velOffset = (AST_SIZE_MAX - pSrc->scale + 1.0f) * 0.25f;
         float scaleNew  = pSrc->scale * 0.5f;
@@ -1264,16 +1406,6 @@ GameObjInst* astCreate(GameObjInst* pSrc)
         return pSrc;
     }
 
-    // TODO: The server must pass the position instead of computing it in the client.
-    // pick a random position along the top or left edge
-    //
-    //  struct AsteroidPacket
-    // {
-    //      vec2 pos;
-    //      vec2 velocity;
-    //      vec2 size;   
-    // };
-    //
     {
         // pick a random angle and velocity magnitude
         angle = frand() * 2.0f * PI;
@@ -1290,7 +1422,8 @@ GameObjInst* astCreate(GameObjInst* pSrc)
     }
 
     // create the object instance
-    pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true);
+    // TODO: Create asterorid from networking
+    pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true, 0);
     assert(pInst);
 
     // set the life based on the size
@@ -1406,7 +1539,8 @@ void sparkCreate(uint32_t type, vec2* pPos, uint32_t count, float angleMin, floa
                               pPos,
                               &vel,
                               frand() * 2.0f * PI,
-                              false);
+                              false,
+                              0);
         }
     } else if ((PTCL_EXPLOSION_S <= type) && (type <= PTCL_EXPLOSION_L)) {
         if (type == PTCL_EXPLOSION_S) {
@@ -1451,7 +1585,8 @@ void sparkCreate(uint32_t type, vec2* pPos, uint32_t count, float angleMin, floa
                 &pos,
                 &vel,
                 frand() * 2.0f * PI,
-                false);
+                false,
+                0);
         }
     }
 }

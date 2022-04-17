@@ -34,7 +34,7 @@ namespace engine {
         ~font();
         void create(char const* filename);
         void destroy();
-        void render(char const* text, int x, int y, int size, mat4 const& vp);
+        void render(char const* text, int x, int y, int size, mat4 const& vp, glm::vec4 color = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f));
 
       protected:
         void      parse_page(std::istream& is);

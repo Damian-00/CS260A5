@@ -2,6 +2,7 @@
 #include "networking.hpp"
 
 #include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 
 #include <vector>
 #include <queue>
@@ -27,10 +28,11 @@ namespace CS260 {
 		SYNACK,
 		NewPlayer,
 		PlayerDisconnect,
-		ACKDisconnect		,
+		ACKDisconnect,
 		NotifyPlayerDisconnection,
-		BulletRequest,
+		AsteroidCreation
 		BulletCreation	
+		BulletRequest,
 	};
 
 	
@@ -54,6 +56,14 @@ namespace CS260 {
 		glm::vec2 mObjectVel;
 		
 	};
+	struct AsteroidCreationPacket
+	{
+		unsigned short mObjectID;
+		float mScale;
+		float mAngle;
+		glm::vec2 mPosition;
+		glm::vec2 mVelocity;
+	};
 
 	struct PlayerInfo
 	{
@@ -67,6 +77,7 @@ namespace CS260 {
 	struct NewPlayerPacket
 	{
 		PlayerInfo mPlayerInfo;
+		glm::vec4 color;
 	};
 	struct ShipUpdatePacket
 	{
@@ -101,6 +112,7 @@ namespace CS260 {
 	struct SYNACKPacket
 	{
 		unsigned char mPlayerID;
+		glm::vec4 color;
 	};
 	
 	struct PlayerDisconnectPacket
