@@ -462,4 +462,15 @@ namespace CS260
 		return mDisconnectedPlayersIDs;
 	}
 
+	void Client::RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos)
+	{
+		BulletRequestPacket mPacket;
+		mPacket.mOwnerID = mOwnerID;
+		mPacket.mPos = pos;
+		mPacket.mVel = vel;
+
+		mProtocol.SendPacket(Packet_Types::BulletRequest, &mPacket);
+
+	}
+
 }

@@ -230,6 +230,17 @@ namespace CS260
 			
 			NotifyPlayerDisconnection(receivedPacket.mPlayerID);
 			break;
+		case Packet_Types::BulletRequest:
+
+			BulletRequestPacket receivedPack;
+
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+
+			BulletCreationPacket mPacketToSend;
+			mPacketToSend.mObjectID;
+
+
+			break;
 		}
 		}
 	}

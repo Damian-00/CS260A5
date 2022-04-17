@@ -60,6 +60,8 @@ namespace CS260
 
 		const std::vector<unsigned char>& GetDisconnectedPlayersIDs();
 
+		void RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos );
+
 	private:
 		/*	\fn ConnectToServer
 		\brief	Handles connection

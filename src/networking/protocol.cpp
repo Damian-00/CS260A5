@@ -181,6 +181,14 @@ namespace CS260
 			packetSize = sizeof(PlayerDisconnectPacket);
 			needsACK = true;
 			break;
+		case Packet_Types::BulletRequest:
+			packetSize = sizeof(BulletRequestPacket);
+			needsACK = false;
+			break;
+		case Packet_Types::BulletCreation:
+			packetSize = sizeof(BulletCreationPacket);
+			needsACK = true;
+			break;
 		}
 		
 		if(needsACKPtr)

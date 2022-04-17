@@ -28,7 +28,9 @@ namespace CS260 {
 		NewPlayer,
 		PlayerDisconnect,
 		ACKDisconnect		,
-		NotifyPlayerDisconnection
+		NotifyPlayerDisconnection,
+		BulletRequest,
+		BulletCreation	
 	};
 
 	
@@ -70,6 +72,20 @@ namespace CS260 {
 	{
 		PlayerInfo mPlayerInfo;
 
+	};
+
+	struct BulletRequestPacket {
+		unsigned mOwnerID;
+		glm::vec2 mPos;
+		glm::vec2 mVel;
+	};
+
+	struct BulletCreationPacket {
+
+		unsigned mOwnerID;
+		glm::vec2 mPos;
+		glm::vec2 mVel;
+		unsigned mObjectID;
 	};
 
 	struct ObjectCreationPacket {

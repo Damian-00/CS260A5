@@ -116,6 +116,7 @@ struct GameObjInst
     void*    pUserData; // pointer to custom data specific for each object type
     unsigned id;   
     bool inputPressed;
+    unsigned mOwnerID;
 };
 
 // ---------------------------------------------------------------------------
@@ -211,6 +212,8 @@ static void sparkCreate(uint32_t type, vec2* pPos, uint32_t count, float angleMi
 
 // function for the missile to find a new target
 static GameObjInst* missileAcquireTarget(GameObjInst* pMissile);
+
+static void BulletCreate(unsigned mOwnerID, vec2 vel, vec2 pos);
 
 // ---------------------------------------------------------------------------
 
@@ -356,7 +359,15 @@ void GameStatePlayUpdate(void)
             vel = {glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr)};
             vel = vel * BULLET_SPEED;
 
-            gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &spShip->posCurr, &vel, spShip->dirCurr, true);
+            
+            if (!is_server) {
+
+                client
+
+            }
+
+
+            //gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &spShip->posCurr, &vel, spShip->dirCurr, true);
         }
         // if 'z' pressed
         if (game::instance().input_key_triggered(GLFW_KEY_Z) && (sSpecialCtr >= BOMB_COST)) {
@@ -1480,6 +1491,10 @@ GameObjInst* missileAcquireTarget(GameObjInst* pMissile)
     }
 
     return pTarget;
+}
+
+void BulletCreate(unsigned mOwnerID, vec2 vel, vec2 pos)
+{
 }
 
 // ---------------------------------------------------------------------------
