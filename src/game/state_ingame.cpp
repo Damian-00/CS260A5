@@ -157,6 +157,8 @@ struct RemoteShipInfo
 {
     unsigned char mPlayerID;
     GameObjInst* mShipInstance;
+    uint32_t mScore;
+    long mShipsLeft;
 };
 
 static std::vector<RemoteShipInfo> mRemoteShips;
@@ -859,7 +861,7 @@ void GameStatePlayUpdate(void)
             // We added a new player
             for (auto& playerInfo : server->GetNewPlayers())
             {
-				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0)});
+				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, 3});
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
 
@@ -1018,17 +1020,47 @@ void GameStatePlayDraw(void)
     auto h = gAEWinMaxY - gAEWinMinY;
     vp = glm::ortho(float(0), float(gAEWinMaxX - gAEWinMinX), float(0), float(h), 0.01f, 100.0f) * glm::lookAt(vec3(0, 0, 10), vec3(0, 0, 0), vec3(0, 1, 0));
 
-    sprintf(strBuffer, "Score: %d", sScore);
-    game::instance().font_default()->render(strBuffer, 10, h-10, 24, vp);
+    if (is_server)
+    {
+        const unsigned totalShips = mRemoteShips.size();
 
-    sprintf(strBuffer, "Level: %d", glm::log2<uint32_t>(sAstNum));
-    game::instance().font_default()->render(strBuffer, 10, h-30, 24, vp);
+        for(unsigned i = 0 ; i < totalShips ; ++i)
+        {
+            sprintf(strBuffer, "Player#: %d", i + 1);
+            game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance->modColor);
 
-    sprintf(strBuffer, "Ship Left: %d", sShipCtr >= 0 ? sShipCtr : 0);
-    game::instance().font_default()->render(strBuffer, 600, h-10, 24, vp);
+            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
+            game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance->modColor);
 
-    sprintf(strBuffer, "Special:   %d", sSpecialCtr);
-    game::instance().font_default()->render(strBuffer, 600, h-30, 24, vp);
+            sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
+            game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+        }
+    }
+    else
+    {
+        const unsigned totalShips = mRemoteShips.size() + 1;
+
+        sprintf(strBuffer, "Player#: %d", 1);
+        game::instance().font_default()->render(strBuffer, 0, h - 10, 24, vp, spShip->modColor);
+
+        sprintf(strBuffer, "Ships Left: %d", sShipCtr >= 0 ? sShipCtr : 0);
+        game::instance().font_default()->render(strBuffer, 0, h - 35, 24, vp, spShip->modColor);
+
+        sprintf(strBuffer, "Score#: %d", sScore);
+        game::instance().font_default()->render(strBuffer, 0, h - 60, 24, vp, spShip->modColor);
+
+        for (unsigned i = 0; i < mRemoteShips.size(); ++i)
+        {
+            sprintf(strBuffer, "Player#: %d", i + 2);
+            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+
+            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
+            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+
+            sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
+            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+        }
+    }
 
     // display the game over message
     if (sShipCtr < 0)

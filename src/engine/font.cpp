@@ -102,7 +102,7 @@ namespace engine {
      * @param y 
      * @param size 
      */
-    void font::render(char const* text, int x, int y, int size, mat4 const& vp)
+    void font::render(char const* text, int x, int y, int size, mat4 const& vp, glm::vec4 color)
     {
         // The glyph quad
         constexpr std::array<vec3, 6> const c_quad_pos = {{
@@ -183,6 +183,7 @@ namespace engine {
         m_font_shader->use();
         m_font_shader->set_uniform(0, vp);
         m_font_shader->set_uniform(1, 0);
+        m_font_shader->set_uniform(2, color);
 
         // State
         glEnable(GL_BLEND);
