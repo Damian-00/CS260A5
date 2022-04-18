@@ -625,189 +625,198 @@ void GameStatePlayUpdate(void)
     // ====================
     // check for collision
     // ====================
-#if 0
-    for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
-        GameObjInst* pSrc = sGameObjInstList + i;
+#if 1
+    if (is_server)
+    {
+        for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
+            GameObjInst* pSrc = sGameObjInstList + i;
 
-        // skip non-active object
-        if ((pSrc->flag & FLAG_ACTIVE) == 0)
-            continue;
+            // skip non-active object
+            if ((pSrc->flag & FLAG_ACTIVE) == 0)
+                continue;
 
-        // Bullets vs Asteroids
-        if ((pSrc->pObject->type == TYPE_BULLET) ||
-            (pSrc->pObject->type == TYPE_MISSILE)) {
-            for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
-                GameObjInst* pDst = sGameObjInstList + j;
-
-                // skip no-active and non-asteroid object
-                if (((pDst->flag & FLAG_ACTIVE) == 0) ||
-                    (pDst->pObject->type != TYPE_ASTEROID))
-                    continue;
-
-                if (point_in_aabb(pSrc->posCurr, pDst->posCurr, pDst->scale, pDst->scale) == false)
-                    continue;
-
-                if (pDst->scale < AST_SIZE_MIN) {
-                    sparkCreate(PTCL_EXPLOSION_M, &pDst->posCurr, (uint32_t)(pDst->scale * 10), pSrc->dirCurr - 0.05f * PI, pSrc->dirCurr + 0.05f * PI, pDst->scale);
-                    sScore++;
-
-                    if ((sScore % AST_SPECIAL_RATIO) == 0)
-                        sSpecialCtr++;
-                    if ((sScore % AST_SHIP_RATIO) == 0)
-                        sShipCtr++;
-                    if (sScore == sAstNum * 5)
-                        sAstNum = (sAstNum < AST_NUM_MAX) ? (sAstNum * 2) : sAstNum;
-
-                    // destroy the asteroid
-                    gameObjInstDestroy(pDst);
-                } else {
-                    sparkCreate(PTCL_EXPLOSION_S, &pSrc->posCurr, 10, pSrc->dirCurr + 0.9f * PI, pSrc->dirCurr + 1.1f * PI);
-
-                    // impart some of the bullet/missile velocity to the asteroid
-                    pSrc->velCurr = pSrc->velCurr * 0.01f * (1.0f - pDst->scale / AST_SIZE_MAX);
-                    pDst->velCurr = pDst->velCurr + pSrc->velCurr;
-
-                    // split the asteroid to 4
-                    if ((pSrc->pObject->type == TYPE_MISSILE) ||
-                        ((pDst->life -= 1.0f) < 0.0f))
-                        astCreate(pDst);
-                }
-
-                // destroy the bullet
-                gameObjInstDestroy(pSrc);
-
-                break;
-            }
-
-            // Bomb vs Asteroids
-        } else if (TYPE_BOMB == pSrc->pObject->type) {
-            float radius = 1.0f - pSrc->life;
-
-            pSrc->dirCurr += 2.0f * PI * dt;
-
-            radius = 1.0f - radius;
-            radius *= radius;
-            radius *= radius;
-            radius *= radius;
-            radius *= radius;
-            radius *= radius;
-            radius = (1.0f - radius) * BOMB_RADIUS;
-
-            // check collision
-            for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
-                GameObjInst* pDst = sGameObjInstList + j;
-
-                if (((pDst->flag & FLAG_ACTIVE) == 0) ||
-                    (pDst->pObject->type != TYPE_ASTEROID))
-                    continue;
-
-                // if (AECalcDistPointToRect(&pSrc->posCurr, &pDst->posCurr,
-                // pDst->scale, pDst->scale) > radius)
-                if (point_in_sphere(pSrc->posCurr, pDst->posCurr, radius) == false)
-                    continue;
-
-                if (pDst->scale < AST_SIZE_MIN) {
-                    float dir = atan2f(pDst->posCurr.y - pSrc->posCurr.y,
-                                       pDst->posCurr.x - pSrc->posCurr.x);
-
-                    gameObjInstDestroy(pDst);
-                    sparkCreate(PTCL_EXPLOSION_M, &pDst->posCurr, 20, dir + 0.4f * PI, dir + 0.45f * PI);
-                    sScore++;
-
-                    if ((sScore % AST_SPECIAL_RATIO) == 0)
-                        sSpecialCtr++;
-                    if ((sScore % AST_SHIP_RATIO) == 0)
-                        sShipCtr++;
-                    if (sScore == sAstNum * 5)
-                        sAstNum = (sAstNum < AST_NUM_MAX) ? (sAstNum * 2) : sAstNum;
-                } else {
-                    // split the asteroid to 4
-                    astCreate(pDst);
-                }
-            }
-
-            // Asteroid vs Asteroid
-        } else if (pSrc->pObject->type == TYPE_ASTEROID) {
-            for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
-                GameObjInst* pDst = sGameObjInstList + j;
-                float        d;
-                vec2         nrm, u;
-
-                // skip no-active and non-asteroid object
-                if ((pSrc == pDst) || ((pDst->flag & FLAG_ACTIVE) == 0) ||
-                    (pDst->pObject->type != TYPE_ASTEROID))
-                    continue;
-
-                // check if the object rectangle overlap
-                d = aabb_vs_aabb(pSrc->posCurr, pSrc->scale, pSrc->scale, pDst->posCurr, pDst->scale, pDst->scale);
-                //&nrm);
-
-                if (d >= 0.0f)
-                    continue;
-
-                // adjust object position so that they do not overlap
-                u             = nrm * d * 0.25f;
-                pSrc->posCurr = pSrc->posCurr - u;
-                pDst->posCurr = pDst->posCurr + u;
-
-                // calculate new object velocities
-                resolveCollision(pSrc, pDst, &nrm);
-            }
-
-            // SHIP vs Asteroid
-        } else if (pSrc->pObject->type == TYPE_SHIP) {
-            for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
-                GameObjInst* pDst = sGameObjInstList + j;
-
-                // skip no-active and non-asteroid object
-                if ((pSrc == pDst) || ((pDst->flag & FLAG_ACTIVE) == 0) ||
-                    (pDst->pObject->type != TYPE_ASTEROID))
-                    continue;
-
-                // check if the object rectangle overlap
-                if (aabb_vs_aabb(pSrc->posCurr, pSrc->scale, pSrc->scale, pDst->posCurr, pDst->scale, pDst->scale) == false)
-                    continue;
-
-                // create the big explosion
-                sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 100, 0.0f, 2.0f * PI);
-
-                // reset the ship position and direction
-                spShip->posCurr = {};
-                spShip->velCurr = {};
-                spShip->dirCurr = 0.0f;
-
-                sSpecialCtr = SHIP_SPECIAL_NUM;
-
-                // destroy all asteroid near the ship so that you do not die as soon as
-                // the ship reappear
+            // Bullets vs Asteroids
+            if ((pSrc->pObject->type == TYPE_BULLET) ||
+                (pSrc->pObject->type == TYPE_MISSILE)) {
                 for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
-                    GameObjInst* pInst = sGameObjInstList + j;
-                    vec2         u;
+                    GameObjInst* pDst = sGameObjInstList + j;
 
                     // skip no-active and non-asteroid object
-                    if (((pInst->flag & FLAG_ACTIVE) == 0) ||
-                        (pInst->pObject->type != TYPE_ASTEROID))
+                    if (((pDst->flag & FLAG_ACTIVE) == 0) ||
+                        (pDst->pObject->type != TYPE_ASTEROID))
                         continue;
 
-                    u = pInst->posCurr - spShip->posCurr;
+                    if (point_in_aabb(pSrc->posCurr, pDst->posCurr, pDst->scale, pDst->scale) == false)
+                        continue;
 
-                    if (glm::length(u) < (spShip->scale * 10.0f)) {
-                        sparkCreate(PTCL_EXPLOSION_M, &pInst->posCurr, 10, -PI, PI);
-                        gameObjInstDestroy(pInst);
+                    if (pDst->scale < AST_SIZE_MIN) {
+                        sparkCreate(PTCL_EXPLOSION_M, &pDst->posCurr, (uint32_t)(pDst->scale * 10), pSrc->dirCurr - 0.05f * PI, pSrc->dirCurr + 0.05f * PI, pDst->scale);
+                        sScore++;
+
+                        if ((sScore % AST_SPECIAL_RATIO) == 0)
+                            sSpecialCtr++;
+                        if ((sScore % AST_SHIP_RATIO) == 0)
+                            sShipCtr++;
+                        if (sScore == sAstNum * 5)
+                            sAstNum = (sAstNum < AST_NUM_MAX) ? (sAstNum * 2) : sAstNum;
+
+                        // destroy the asteroid
+                        gameObjInstDestroy(pDst);
+                    }
+                    else {
+                        sparkCreate(PTCL_EXPLOSION_S, &pSrc->posCurr, 10, pSrc->dirCurr + 0.9f * PI, pSrc->dirCurr + 1.1f * PI);
+
+                        // impart some of the bullet/missile velocity to the asteroid
+                        pSrc->velCurr = pSrc->velCurr * 0.01f * (1.0f - pDst->scale / AST_SIZE_MAX);
+                        pDst->velCurr = pDst->velCurr + pSrc->velCurr;
+
+                        // split the asteroid to 4
+                        if ((pSrc->pObject->type == TYPE_MISSILE) ||
+                            ((pDst->life -= 1.0f) < 0.0f))
+                            astCreate(pDst);
+                    }
+
+                    // destroy the bullet
+                    gameObjInstDestroy(pSrc);
+
+                    break;
+                }
+
+                // Bomb vs Asteroids
+            }
+            else if (TYPE_BOMB == pSrc->pObject->type) {
+                float radius = 1.0f - pSrc->life;
+
+                pSrc->dirCurr += 2.0f * PI * dt;
+
+                radius = 1.0f - radius;
+                radius *= radius;
+                radius *= radius;
+                radius *= radius;
+                radius *= radius;
+                radius *= radius;
+                radius = (1.0f - radius) * BOMB_RADIUS;
+
+                // check collision
+                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
+                    GameObjInst* pDst = sGameObjInstList + j;
+
+                    if (((pDst->flag & FLAG_ACTIVE) == 0) ||
+                        (pDst->pObject->type != TYPE_ASTEROID))
+                        continue;
+
+                    // if (AECalcDistPointToRect(&pSrc->posCurr, &pDst->posCurr,
+                    // pDst->scale, pDst->scale) > radius)
+                    if (point_in_sphere(pSrc->posCurr, pDst->posCurr, radius) == false)
+                        continue;
+
+                    if (pDst->scale < AST_SIZE_MIN) {
+                        float dir = atan2f(pDst->posCurr.y - pSrc->posCurr.y,
+                            pDst->posCurr.x - pSrc->posCurr.x);
+
+                        gameObjInstDestroy(pDst);
+                        sparkCreate(PTCL_EXPLOSION_M, &pDst->posCurr, 20, dir + 0.4f * PI, dir + 0.45f * PI);
+                        sScore++;
+
+                        if ((sScore % AST_SPECIAL_RATIO) == 0)
+                            sSpecialCtr++;
+                        if ((sScore % AST_SHIP_RATIO) == 0)
+                            sShipCtr++;
+                        if (sScore == sAstNum * 5)
+                            sAstNum = (sAstNum < AST_NUM_MAX) ? (sAstNum * 2) : sAstNum;
+                    }
+                    else {
+                        // split the asteroid to 4
+                        astCreate(pDst);
                     }
                 }
 
-                // reduce the ship counter
-                sShipCtr--;
+                // Asteroid vs Asteroid
+            }
+            else if (pSrc->pObject->type == TYPE_ASTEROID) {
+                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
+                    GameObjInst* pDst = sGameObjInstList + j;
+                    float        d;
+                    vec2         nrm, u;
 
-                // if counter is less than 0, game over
-                if (sShipCtr < 0) {
-                    sGameStateChangeCtr = 2.0;
-                    gameObjInstDestroy(spShip);
-                    spShip = 0;
+                    // skip no-active and non-asteroid object
+                    if ((pSrc == pDst) || ((pDst->flag & FLAG_ACTIVE) == 0) ||
+                        (pDst->pObject->type != TYPE_ASTEROID))
+                        continue;
+
+                    // check if the object rectangle overlap
+                    d = aabb_vs_aabb(pSrc->posCurr, pSrc->scale, pSrc->scale, pDst->posCurr, pDst->scale, pDst->scale);
+                    //&nrm);
+
+                    // This actually ignores the collision between asteroids
+                    if (d >= 0.0f)
+                        continue;
+
+                    // adjust object position so that they do not overlap
+                    u = nrm * d * 0.25f;
+                    pSrc->posCurr = pSrc->posCurr - u;
+                    pDst->posCurr = pDst->posCurr + u;
+
+                    // calculate new object velocities
+                    resolveCollision(pSrc, pDst, &nrm);
                 }
 
-                break;
+                // SHIP vs Asteroid
+            }
+            else if (pSrc->pObject->type == TYPE_SHIP) {
+                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
+                    GameObjInst* pDst = sGameObjInstList + j;
+
+                    // skip no-active and non-asteroid object
+                    if ((pSrc == pDst) || ((pDst->flag & FLAG_ACTIVE) == 0) ||
+                        (pDst->pObject->type != TYPE_ASTEROID))
+                        continue;
+
+                    // check if the object rectangle overlap
+                    if (aabb_vs_aabb(pSrc->posCurr, pSrc->scale, pSrc->scale, pDst->posCurr, pDst->scale, pDst->scale) == false)
+                        continue;
+
+                    // create the big explosion
+                    sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 100, 0.0f, 2.0f * PI);
+
+                    // reset the ship position and direction
+                    spShip->posCurr = {};
+                    spShip->velCurr = {};
+                    spShip->dirCurr = 0.0f;
+
+                    sSpecialCtr = SHIP_SPECIAL_NUM;
+
+                    // destroy all asteroid near the ship so that you do not die as soon as
+                    // the ship reappear
+                    for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
+                        GameObjInst* pInst = sGameObjInstList + j;
+                        vec2         u;
+
+                        // skip no-active and non-asteroid object
+                        if (((pInst->flag & FLAG_ACTIVE) == 0) ||
+                            (pInst->pObject->type != TYPE_ASTEROID))
+                            continue;
+
+                        u = pInst->posCurr - spShip->posCurr;
+
+                        if (glm::length(u) < (spShip->scale * 10.0f)) {
+                            sparkCreate(PTCL_EXPLOSION_M, &pInst->posCurr, 10, -PI, PI);
+                            gameObjInstDestroy(pInst);
+                        }
+                    }
+
+                    // reduce the ship counter
+                    sShipCtr--;
+
+                    // if counter is less than 0, game over
+                    if (sShipCtr < 0) {
+                        sGameStateChangeCtr = 2.0;
+                        gameObjInstDestroy(spShip);
+                        spShip = 0;
+                    }
+
+                    break;
+                }
             }
         }
     }
