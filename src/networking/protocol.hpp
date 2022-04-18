@@ -30,9 +30,9 @@ namespace CS260 {
 		PlayerDisconnect,
 		ACKDisconnect,
 		NotifyPlayerDisconnection,
-		AsteroidCreation
-		BulletCreation	
-		BulletRequest,
+		AsteroidCreation,
+		BulletCreation,	
+		BulletRequest
 	};
 
 	
@@ -83,12 +83,13 @@ namespace CS260 {
 	{
 		PlayerInfo mPlayerInfo;
 
-	};
+	}; 
 
 	struct BulletRequestPacket {
-		unsigned mOwnerID;
 		glm::vec2 mPos;
 		glm::vec2 mVel;
+		unsigned mOwnerID;
+		float mDir;
 	};
 
 	struct BulletCreationPacket {
@@ -96,6 +97,7 @@ namespace CS260 {
 		unsigned mOwnerID;
 		glm::vec2 mPos;
 		glm::vec2 mVel;
+		float mDir;
 		unsigned mObjectID;
 	};
 

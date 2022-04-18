@@ -66,7 +66,9 @@ namespace CS260
 
 		glm::vec4 GetColor();
 
-		void RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos );
+		void RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos , float dir);
+
+		std::vector<BulletCreationPacket> mBulletsToCreate;
 
 	private:
 		/*	\fn ConnectToServer

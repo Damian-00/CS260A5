@@ -315,6 +315,15 @@ namespace CS260
 			mAsteroidsCreated.push_back(receivedPacket);
 		}
 			break;
+		
+		case Packet_Types::BulletCreation:
+
+			BulletCreationPacket receivedPCK;
+			::memcpy(&receivedPCK, packet.mBuffer.data(), sizeof(receivedPCK));
+
+			mBulletsToCreate.push_back(receivedPCK);
+
+			break;
 		}
 	}
 
@@ -485,13 +494,13 @@ namespace CS260
 		return mColor;
 	}
 
-	void Client::RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos)
+	void Client::RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos, float dir)
 	{
 		BulletRequestPacket mPacket;
 		mPacket.mOwnerID = mOwnerID;
 		mPacket.mPos = pos;
 		mPacket.mVel = vel;
-
+		mPacket.mDir = dir;
 		mProtocol.SendPacket(Packet_Types::BulletRequest, &mPacket);
 
 	}

@@ -1,6 +1,7 @@
 #include "server.hpp"
 #include "server.hpp"
 #include "server.hpp"
+#include "server.hpp"
 #include "utils.hpp"
 
 namespace CS260
@@ -52,6 +53,8 @@ namespace CS260
 		mProtocol.SetSocket(mSocket);
 
 		srand(time(0));
+
+		mBulletsToCreate.clear();
 	}
 
 	Server::~Server()
@@ -148,6 +151,14 @@ namespace CS260
 				asteroid.mVelocity = velocity;
 				return;
 			}
+		}
+	}
+
+	void Server::SendBulletToAllClients(BulletCreationPacket mBullet)
+	{
+
+		for (auto& client : mClients) {
+			mProtocol.SendPacket(Packet_Types::BulletCreation, &mBullet, &client.mEndpoint);
 		}
 	}
 
@@ -266,15 +277,15 @@ namespace CS260
 			
 			NotifyPlayerDisconnection(receivedPacket.mPlayerID);
 			break;
+
 		case Packet_Types::BulletRequest:
 
-			BulletRequestPacket receivedPack;
+			BulletRequestPacket rcpk;
+			size_t size = sizeof(BulletRequestPacket);
 
-			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			::memcpy(&rcpk, packet.mBuffer.data(), size);
 
-			BulletCreationPacket mPacketToSend;
-			mPacketToSend.mObjectID;
-
+			mBulletsToCreate.push_back(rcpk); // add it to the vector for the state_ingame to generate the bullets afterwards
 
 			break;
 		}

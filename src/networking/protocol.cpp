@@ -186,8 +186,8 @@ namespace CS260
 			needsACK = true;
 			break;
 		case Packet_Types::BulletRequest:
-			packetSize = sizeof(BulletRequestPacket);
-			needsACK = false;
+			packetSize =  sizeof(BulletRequestPacket);
+			needsACK = true;
 			break;
 		case Packet_Types::BulletCreation:
 			packetSize = sizeof(BulletCreationPacket);

@@ -14,6 +14,7 @@
 #include "networking/server.hpp" // networking utils
 #include "networking/protocol.hpp" // networking utils
 
+
 // ---------------------------------------------------------------------------
 // Defines
 
@@ -213,6 +214,8 @@ static void         gameObjInstDestroy(GameObjInst* pInst);
 static GameObjInst* astCreateClient(const CS260::AsteroidCreationPacket& asteroidInfo);
 static GameObjInst* astCreateServer(GameObjInst* pSrc);
 
+static GameObjInst* bulletCreate(vec2 pos, vec2 vel, float dir, unsigned ownerID, unsigned ID);
+
 // function to calculate the object's velocity after collison
 static void resolveCollision(GameObjInst* pSrc, GameObjInst* pDst, vec2* pNrm);
 
@@ -222,7 +225,6 @@ static void sparkCreate(uint32_t type, vec2* pPos, uint32_t count, float angleMi
 // function for the missile to find a new target
 static GameObjInst* missileAcquireTarget(GameObjInst* pMissile);
 
-static void BulletCreate(unsigned mOwnerID, vec2 vel, vec2 pos);
 
 // ---------------------------------------------------------------------------
 
@@ -371,11 +373,11 @@ void GameStatePlayUpdate(void)
             vel = {glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr)};
             vel = vel * BULLET_SPEED;
 
-            gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &spShip->posCurr, &vel, spShip->dirCurr, true, 0);
+           // gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &spShip->posCurr, &vel, spShip->dirCurr, true, 0);
             
             if (!is_server) {
 
-                client
+                client->RequestBullet(spShip->id, vel, spShip->posCurr, spShip->dirCurr);
 
             }
 
@@ -908,6 +910,25 @@ void GameStatePlayUpdate(void)
                     }
                 }
             }
+
+
+            for (auto& obj : server->mBulletsToCreate) {
+
+                auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID++);
+
+                inst->mOwnerID = obj.mOwnerID; //set the bullet owner
+
+                CS260::BulletCreationPacket sendPCK;
+                sendPCK.mDir = obj.mDir;
+                sendPCK.mObjectID = sLastGeneratedID;
+                sendPCK.mOwnerID = obj.mOwnerID;
+                sendPCK.mPos = obj.mPos;
+                sendPCK.mVel = obj.mVel;
+
+                server->SendBulletToAllClients(sendPCK);
+               
+            }
+            server->mBulletsToCreate.clear();
         }		
         else
         {
@@ -975,6 +996,14 @@ void GameStatePlayUpdate(void)
             {
                 astCreateClient(asteroid);
             }
+
+            for (auto& obj : client->mBulletsToCreate) {
+
+                auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID++);
+
+                inst->mOwnerID = obj.mOwnerID; //set the bullet owner
+            }
+            client->mBulletsToCreate.clear();
 
 			// Handle window about to clsoe
             if (!game::instance().should_continue)
@@ -1432,6 +1461,14 @@ GameObjInst* astCreate(GameObjInst* pSrc)
     return pInst;
 }
 
+
+GameObjInst* bulletCreate(vec2 pos, vec2 vel,float _dir, unsigned ownerID, unsigned ID) {
+
+    return gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &pos, &vel, _dir, true, ID);
+
+    //pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true, 0);
+}
+
 // ---------------------------------------------------------------------------
 
 void resolveCollision(GameObjInst* pSrc, GameObjInst* pDst, vec2* pNrm)
@@ -1628,8 +1665,6 @@ GameObjInst* missileAcquireTarget(GameObjInst* pMissile)
     return pTarget;
 }
 
-void BulletCreate(unsigned mOwnerID, vec2 vel, vec2 pos)
-{
-}
+
 
 // ---------------------------------------------------------------------------

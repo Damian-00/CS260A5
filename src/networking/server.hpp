@@ -68,6 +68,9 @@ namespace CS260
 
 		void UpdateAsteroid(unsigned short id, glm::vec2 position, glm::vec2 velocity);
 
+		std::vector<BulletRequestPacket> mBulletsToCreate;
+
+		void SendBulletToAllClients(BulletCreationPacket mBullet);
 	private:
 
 		void ReceivePackets();
