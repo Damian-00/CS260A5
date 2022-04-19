@@ -239,7 +239,10 @@ namespace CS260
 		// The server is constantly sending messages, so the timer should be updated on each tick
 		// If not, something bad happened and we force the application to close
 		if (mKeepAliveTimer > timeOutTimer)
+		{
 			mClose = true;
+			PrintMessage("Exiting by timeout of server");
+		}
 	}
 
 	void Client::HandleReceivedMessage(ProtocolPacket& packet, Packet_Types type)
@@ -299,6 +302,7 @@ namespace CS260
 		case Packet_Types::PlayerDisconnect:
 		{
 			mClose = true;
+			PrintMessage("Forced to disconnect by server");
 		}
 		break;
 		case Packet_Types::ACKDisconnect:

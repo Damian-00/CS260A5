@@ -285,7 +285,7 @@ void GameStatePlayUpdate(void)
             // TODO: Change to RESULT GAME STATE
         }
     } else {
-        if (spShip)
+        if (sShipCtr > 0)
         {
             if (game::instance().input_key_pressed(GLFW_KEY_UP)) {
 #if 0
@@ -475,11 +475,14 @@ void GameStatePlayUpdate(void)
             
                 for (auto& ship : currentShips)
                 {
-                    float distance = glm::distance2(ship->posCurr, pInst->posCurr);
-                    if (distance < minDistance)
+                    if (ship)
                     {
-                        minDistance = distance;
-                        nearestShip = ship;
+                        float distance = glm::distance2(ship->posCurr, pInst->posCurr);
+                        if (distance < minDistance)
+                        {
+                            minDistance = distance;
+                            nearestShip = ship;
+                        }
                     }
                 }
             
@@ -929,7 +932,8 @@ void GameStatePlayUpdate(void)
         }		
         else
         {
-            spShip->modColor = client->GetColor();
+            if(spShip)
+                spShip->modColor = client->GetColor();
 
             client->Tick();
 			
@@ -939,14 +943,12 @@ void GameStatePlayUpdate(void)
                 // Destroy the ship
                 for (auto& ship : mRemoteShips)
                 {
-                    if (ship.mPlayerID == playerID)
+                    if (ship.mPlayerID == playerID && ship.mShipInstance)
                         gameObjInstDestroy(ship.mShipInstance);
                 }
 
-                std::remove_if(mRemoteShips.begin(), mRemoteShips.end(), [playerID](const RemoteShipInfo& ship)
-                    {
-                        return ship.mPlayerID == playerID;
-                    });
+                mRemoteShips.erase(std::find_if(mRemoteShips.begin(), mRemoteShips.end(), [playerID](const RemoteShipInfo& ship)
+                    { return ship.mPlayerID == playerID; }));
             }
 
             // Check if any new player connected
@@ -962,7 +964,7 @@ void GameStatePlayUpdate(void)
             {
                 for (auto& ship : mRemoteShips)
                 {
-                    if (ship.mPlayerID == playerInfo.mID)
+                    if (ship.mPlayerID == playerInfo.mID && ship.mShipInstance)
                     {
                         ship.mShipInstance->posCurr = playerInfo.pos;
                         ship.mShipInstance->dirCurr = playerInfo.rot;
@@ -1024,7 +1026,7 @@ void GameStatePlayUpdate(void)
 				
                 if (deadPlayer.mPlayerID == client->GetPlayerID())
                 {
-                    if (spShip)
+                    if (sShipCtr > 0)
                     {
                         std::cout << "Killing player with ID: " << deadPlayer.mPlayerID << std::endl;
                         sparkCreate(PTCL_EXPLOSION_L, &spShip->posCurr, 100, 0.0f, 2.0f * PI);
@@ -1036,11 +1038,11 @@ void GameStatePlayUpdate(void)
                         spShip->velCurr = { 0, 0 };
                         spShip->dirCurr = 0.0f;
 
-                        if (sShipCtr == 0)
-                        {
-                            gameObjInstDestroy(spShip);
-                            spShip = nullptr;
-                        }
+                        //if (sShipCtr == 0)
+                        //{
+                        //    gameObjInstDestroy(spShip);
+                        //    spShip = nullptr;
+                        //}
                     }
                 }
                 else
@@ -1051,23 +1053,25 @@ void GameStatePlayUpdate(void)
                         std::cout << "Remote ID: " << ship.mPlayerID << std::endl;
                         if (deadPlayer.mPlayerID == ship.mPlayerID)
                         {
-                            if (ship.mShipInstance)
+                            //if (ship.mShipInstance)
+                            if (ship.mShipsLeft > 0)
                             {
                                 std::cout << "Killing remote player with ID: " << deadPlayer.mPlayerID << std::endl;
                                 ship.mShipsLeft = deadPlayer.mRemainingLifes;
 								
-                                if (ship.mShipsLeft == 0)
-                                {
-                                    gameObjInstDestroy(ship.mShipInstance);
-                                    ship.mShipInstance = nullptr;
-                                }
+                                //if (ship.mShipsLeft == 0)
+                                //{
+                                //    gameObjInstDestroy(ship.mShipInstance);
+                                //    ship.mShipInstance = nullptr;
+                                //}
                             }
                         }
                     }
                 }
             }
 
-            if (client->Connected() && spShip)
+            //if (client->Connected() && spShip)
+            if (client->Connected() && sShipCtr > 0)
                 client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
 
 			// Handle window about to clsoe
@@ -1135,7 +1139,7 @@ void GameStatePlayDraw(void)
             sprintf(strBuffer, "Player#: %d", i + 1);
             game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance->modColor);
 
-            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
+            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft);
             game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance->modColor);
 
             sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
@@ -1155,16 +1159,30 @@ void GameStatePlayDraw(void)
         sprintf(strBuffer, "Score#: %d", sScore);
         game::instance().font_default()->render(strBuffer, 0, h - 60, 24, vp, spShip ? spShip->modColor : glm::vec4(1.0f));
 
+        if (sShipCtr == 0)
+        {
+            sprintf(strBuffer, "Game Over Player#: 1");
+            game::instance().font_default()->render(strBuffer, spShip->posCurr.x, spShip->posCurr.y, 24, vp, spShip->modColor);
+        }
+			
         for (unsigned i = 0; i < mRemoteShips.size(); ++i)
         {
-            sprintf(strBuffer, "Player#: %d", i + 2);
-            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+            {
+                sprintf(strBuffer, "Player#: %d", i + 2);
+                game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
 
-            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
-            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+                sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
+                game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
 
-            sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
-            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+                sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
+                game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
+            }
+            if (mRemoteShips[i].mShipsLeft == 0)
+            {
+                sprintf(strBuffer, "Game Over Player#: %d", i + 2);
+                game::instance().font_default()->render(strBuffer, mRemoteShips[i].mShipInstance->posCurr.x, mRemoteShips[i].mShipInstance->posCurr.y, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
+            }
+				
         }
     }
 
