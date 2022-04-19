@@ -1,6 +1,9 @@
 #include "server.hpp"
 #include "server.hpp"
 #include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
+#include "server.hpp"
 #include "utils.hpp"
 
 namespace CS260
@@ -12,7 +15,8 @@ namespace CS260
 		mDisconnectTimeout(0),
 		mDisconnectTries(0),
 		mPlayerInfo(playerInfo),
-		color(col)
+		color(col),
+		mCurrentLifes(3)
 	{
 	}
 
@@ -61,6 +65,9 @@ namespace CS260
 
 	void Server::Tick()
 	{
+		// Update the timer that updates the asteroids
+		mUpdateAsteroidsTimer += tickRate;
+		
 		// Update Keep alive timer
 		for (auto& client : mClients)
 			client.mAliveTimer += tickRate;
@@ -71,7 +78,9 @@ namespace CS260
 		// Handle all the receive packets
 		ReceivePackets();
 
+		// Resend unacknowledged messages if necessary
 		mProtocol.Tick();
+		
 		// This is to avoid having the clients disconnecting while they are playing by their own
 		SendVoidPackets();
 
@@ -149,6 +158,51 @@ namespace CS260
 				return;
 			}
 		}
+	}
+
+	void Server::SendAsteroidsUpdate()
+	{
+		if (mUpdateAsteroidsTimer > updateAsteroids)
+		{
+			for (auto& asteroid : mAliveAsteroids)
+			{
+				AsteroidUpdatePacket packet;
+				packet.mID = asteroid.mObjectID;
+				packet.mPosition = asteroid.mPosition;
+				packet.mVelocity = asteroid.mVelocity;
+
+				for (auto& client : mClients)
+				{
+					mProtocol.SendPacket(Packet_Types::AsteroidUpdate, &packet, &client.mEndpoint);
+				}
+			}
+			mUpdateAsteroidsTimer = 0;
+		}
+	}
+
+	void Server::SendPlayerDiePacket(unsigned char playerID)
+	{
+		for (auto& client : mClients)
+		{
+			if (client.mCurrentLifes > 0)
+			{
+				client.mCurrentLifes--;
+				PlayerDiePacket packet;
+				packet.mPlayerID = playerID;
+				packet.mRemainingLifes = client.mCurrentLifes;
+				mProtocol.SendPacket(Packet_Types::PlayerDie, &packet, &client.mEndpoint);
+			}
+		}
+	}
+
+	void Server::SendAsteroidDestroyPacket(unsigned short objectID)
+	{
+		mAliveAsteroids.erase(std::find_if(mAliveAsteroids.begin(), mAliveAsteroids.end(), [objectID](AsteroidCreationPacket& asteroid) { return asteroid.mObjectID == objectID; }));
+		
+		AsteroidDestructionPacket packet;
+		packet.mObjectId = objectID;
+		for (auto& client : mClients)
+			mProtocol.SendPacket(Packet_Types::AsteroidDestroy, &packet, &client.mEndpoint);
 	}
 
 	void Server::ReceivePackets()

@@ -77,6 +77,9 @@ namespace CS260
 		mNewPlayersOnFrame.clear();
 		mDisconnectedPlayersIDs.clear();
 		mAsteroidsCreated.clear();
+		mAsteroidsUpdate.clear();
+		mAsteroidsDestroyed.clear();
+		mPlayersDied.clear();
 
 		ReceiveMessages();
 		mProtocol.Tick();
@@ -315,6 +318,27 @@ namespace CS260
 			mAsteroidsCreated.push_back(receivedPacket);
 		}
 			break;
+		case Packet_Types::AsteroidUpdate:
+		{
+			AsteroidUpdatePacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			mAsteroidsUpdate.push_back(receivedPacket);
+		}
+		break;
+		case Packet_Types::AsteroidDestroy:
+		{
+			AsteroidDestructionPacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			mAsteroidsDestroyed.push_back(receivedPacket);
+		}
+		break;
+		case Packet_Types::PlayerDie:
+		{
+			PlayerDiePacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			mPlayersDied.push_back(receivedPacket);
+		}
+		break;
 		}
 	}
 
@@ -470,6 +494,11 @@ namespace CS260
 		mProtocol.SendPacket(Packet_Types::PlayerDisconnect, &packet);
 	}
 
+	unsigned char Client::GetPlayerID()
+	{
+		return mID;
+	}
+
 	const std::vector<unsigned char>& Client::GetDisconnectedPlayersIDs()
 	{
 		return mDisconnectedPlayersIDs;
@@ -478,6 +507,16 @@ namespace CS260
 	const std::vector<AsteroidCreationPacket>& Client::GetCreatedAsteroids()
 	{
 		return mAsteroidsCreated;
+	}
+
+	const std::vector<AsteroidUpdatePacket>& Client::GetUpdatedAsteroids()
+	{
+		return mAsteroidsUpdate;
+	}
+
+	const std::vector<PlayerDiePacket>& Client::GetDiedPlayers()
+	{
+		return mPlayersDied;
 	}
 
 	glm::vec4 Client::GetColor()

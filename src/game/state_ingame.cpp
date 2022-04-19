@@ -577,7 +577,8 @@ void GameStatePlayUpdate(void)
                     uLen = glm::length(u);
 
                     // if the missile is 'close' to target, do nothing
-                    if (uLen > 0.1f) {
+                    if (uLen > 0.1f) 
+                    {
                         // normalize the vector from the missile to the target
                         u = u * 1.0f / uLen;
 
@@ -628,7 +629,8 @@ void GameStatePlayUpdate(void)
 #if 1
     if (is_server)
     {
-        for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
+        for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) 
+        {
             GameObjInst* pSrc = sGameObjInstList + i;
 
             // skip non-active object
@@ -637,8 +639,10 @@ void GameStatePlayUpdate(void)
 
             // Bullets vs Asteroids
             if ((pSrc->pObject->type == TYPE_BULLET) ||
-                (pSrc->pObject->type == TYPE_MISSILE)) {
-                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
+                (pSrc->pObject->type == TYPE_MISSILE)) 
+            {
+                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) 
+                {
                     GameObjInst* pDst = sGameObjInstList + j;
 
                     // skip no-active and non-asteroid object
@@ -649,7 +653,8 @@ void GameStatePlayUpdate(void)
                     if (point_in_aabb(pSrc->posCurr, pDst->posCurr, pDst->scale, pDst->scale) == false)
                         continue;
 
-                    if (pDst->scale < AST_SIZE_MIN) {
+                    if (pDst->scale < AST_SIZE_MIN) 
+                    {
                         sparkCreate(PTCL_EXPLOSION_M, &pDst->posCurr, (uint32_t)(pDst->scale * 10), pSrc->dirCurr - 0.05f * PI, pSrc->dirCurr + 0.05f * PI, pDst->scale);
                         sScore++;
 
@@ -663,7 +668,8 @@ void GameStatePlayUpdate(void)
                         // destroy the asteroid
                         gameObjInstDestroy(pDst);
                     }
-                    else {
+                    else 
+                    {
                         sparkCreate(PTCL_EXPLOSION_S, &pSrc->posCurr, 10, pSrc->dirCurr + 0.9f * PI, pSrc->dirCurr + 1.1f * PI);
 
                         // impart some of the bullet/missile velocity to the asteroid
@@ -671,9 +677,9 @@ void GameStatePlayUpdate(void)
                         pDst->velCurr = pDst->velCurr + pSrc->velCurr;
 
                         // split the asteroid to 4
-                        if ((pSrc->pObject->type == TYPE_MISSILE) ||
-                            ((pDst->life -= 1.0f) < 0.0f))
-                            astCreate(pDst);
+                        //if ((pSrc->pObject->type == TYPE_MISSILE) ||
+                        //    ((pDst->life -= 1.0f) < 0.0f))
+                        //    astCreate(pDst);
                     }
 
                     // destroy the bullet
@@ -684,7 +690,8 @@ void GameStatePlayUpdate(void)
 
                 // Bomb vs Asteroids
             }
-            else if (TYPE_BOMB == pSrc->pObject->type) {
+            else if (TYPE_BOMB == pSrc->pObject->type) 
+            {
                 float radius = 1.0f - pSrc->life;
 
                 pSrc->dirCurr += 2.0f * PI * dt;
@@ -725,16 +732,17 @@ void GameStatePlayUpdate(void)
                         if (sScore == sAstNum * 5)
                             sAstNum = (sAstNum < AST_NUM_MAX) ? (sAstNum * 2) : sAstNum;
                     }
-                    else {
-                        // split the asteroid to 4
-                        astCreate(pDst);
-                    }
+                    //else {
+                    //    // split the asteroid to 4
+                    //    astCreate(pDst);
+                    //}
                 }
-
-                // Asteroid vs Asteroid
             }
-            else if (pSrc->pObject->type == TYPE_ASTEROID) {
-                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
+            // Asteroid vs Asteroid
+            else if (pSrc->pObject->type == TYPE_ASTEROID) 
+            {
+                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) 
+                {
                     GameObjInst* pDst = sGameObjInstList + j;
                     float        d;
                     vec2         nrm, u;
@@ -760,11 +768,12 @@ void GameStatePlayUpdate(void)
                     // calculate new object velocities
                     resolveCollision(pSrc, pDst, &nrm);
                 }
-
-                // SHIP vs Asteroid
             }
-            else if (pSrc->pObject->type == TYPE_SHIP) {
-                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
+            // SHIP vs Asteroid
+            else if (pSrc->pObject->type == TYPE_SHIP) 
+            {
+                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) 
+                {
                     GameObjInst* pDst = sGameObjInstList + j;
 
                     // skip no-active and non-asteroid object
@@ -776,43 +785,58 @@ void GameStatePlayUpdate(void)
                     if (aabb_vs_aabb(pSrc->posCurr, pSrc->scale, pSrc->scale, pDst->posCurr, pDst->scale, pDst->scale) == false)
                         continue;
 
+					// TODO: Send explosion particle effect to clients
                     // create the big explosion
                     sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 100, 0.0f, 2.0f * PI);
 
-                    // reset the ship position and direction
-                    spShip->posCurr = {};
-                    spShip->velCurr = {};
-                    spShip->dirCurr = 0.0f;
+					// Update the corresponding client's position and the lifes remaining
+                    // reset the its ship position and direction
+                    for (auto& ship : mRemoteShips)
+                    {
+                        if (ship.mShipInstance->id == pSrc->id)
+                        {
+                            if (ship.mShipsLeft > 0)
+                            {
+                                server->SendPlayerDiePacket(ship.mPlayerID);
 
-                    sSpecialCtr = SHIP_SPECIAL_NUM;
+                                ship.mShipInstance->posCurr = {};
+                                ship.mShipInstance->velCurr = {};
+                                ship.mShipInstance->dirCurr = 0.0f;
+                                ship.mShipsLeft--;
 
-                    // destroy all asteroid near the ship so that you do not die as soon as
-                    // the ship reappear
-                    for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
-                        GameObjInst* pInst = sGameObjInstList + j;
-                        vec2         u;
+                                sSpecialCtr = SHIP_SPECIAL_NUM;
 
-                        // skip no-active and non-asteroid object
-                        if (((pInst->flag & FLAG_ACTIVE) == 0) ||
-                            (pInst->pObject->type != TYPE_ASTEROID))
-                            continue;
+                                // destroy all asteroid near the ship so that you do not die as soon as
+                                // the ship reappear
+                                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++)
+                                {
+                                    GameObjInst* pInst = sGameObjInstList + j;
+                                    vec2         u;
 
-                        u = pInst->posCurr - spShip->posCurr;
+                                    // skip no-active and non-asteroid object
+                                    if (((pInst->flag & FLAG_ACTIVE) == 0) ||
+                                        (pInst->pObject->type != TYPE_ASTEROID))
+                                        continue;
 
-                        if (glm::length(u) < (spShip->scale * 10.0f)) {
-                            sparkCreate(PTCL_EXPLOSION_M, &pInst->posCurr, 10, -PI, PI);
-                            gameObjInstDestroy(pInst);
+                                    u = pInst->posCurr - ship.mShipInstance->posCurr;
+
+                                    if (glm::length(u) < (ship.mShipInstance->scale * 10.0f))
+                                    {
+                                        server->SendAsteroidDestroyPacket(pInst->id);
+                                        sparkCreate(PTCL_EXPLOSION_M, &pInst->posCurr, 10, -PI, PI);
+                                        gameObjInstDestroy(pInst);
+                                    }
+                                }
+
+                                // if counter is less than 0, game over
+                                if (sShipCtr == 0) 
+                                {
+                                    //sGameStateChangeCtr = 2.0;
+                                    gameObjInstDestroy(ship.mShipInstance);
+                                    ship.mShipInstance = nullptr;
+                                }
+                            }
                         }
-                    }
-
-                    // reduce the ship counter
-                    sShipCtr--;
-
-                    // if counter is less than 0, game over
-                    if (sShipCtr < 0) {
-                        sGameStateChangeCtr = 2.0;
-                        gameObjInstDestroy(spShip);
-                        spShip = 0;
                     }
 
                     break;
@@ -905,6 +929,8 @@ void GameStatePlayUpdate(void)
                     }
                 }
             }
+
+            server->SendAsteroidsUpdate();
         }		
         else
         {
@@ -972,6 +998,65 @@ void GameStatePlayUpdate(void)
             {
                 astCreateClient(asteroid);
             }
+
+			// Update the asteroids
+            for (auto& asteroid : client->GetUpdatedAsteroids())
+            {
+                for (auto& obj : sGameObjInstList)
+                {
+                    if (obj.id == asteroid.mID && obj.pObject && obj.pObject->type == TYPE_ASTEROID)
+                    {
+                        obj.posCurr = asteroid.mPosition;
+                        obj.velCurr = asteroid.mVelocity;
+                    }
+                }
+            }
+
+			// Destroy asteroids
+            for (auto& asteroid : client->GetDestroyedAsteroids())
+            {
+                for (auto& obj : sGameObjInstList)
+                {
+                    if (obj.id == asteroid.mObjectId && obj.pObject && obj.pObject->type == TYPE_ASTEROID)
+                    {
+                        sparkCreate(PTCL_EXPLOSION_M, &obj.posCurr, 10, -PI, PI);
+                        gameObjInstDestroy(&obj);
+                    }
+                }
+            }
+			// Check for dead players
+            for (auto& deadPlayer : client->GetDiedPlayers())
+            {
+                if (deadPlayer.mPlayerID == client->GetPlayerID())
+                {
+                    spShip->posCurr = { 0, 0 };
+                    spShip->velCurr = { 0, 0 };
+                    spShip->dirCurr = 0.0f;
+                    sShipCtr = deadPlayer.mRemainingLifes;
+                    if (sShipCtr == 0)
+                    {
+                        gameObjInstDestroy(spShip);
+                        spShip = nullptr;
+                    }
+                }
+                else
+                for (auto& ship : mRemoteShips)
+                {
+                    if (deadPlayer.mPlayerID == ship.mPlayerID)
+                    {
+                        ship.mShipInstance->posCurr = {0, 0};
+                        ship.mShipInstance->velCurr = {0, 0};
+                        ship.mShipInstance->dirCurr = 0.0f;
+                        ship.mShipsLeft = deadPlayer.mRemainingLifes;
+                        if (ship.mShipsLeft == 0)
+                        {
+                            gameObjInstDestroy(ship.mShipInstance);
+                            ship.mShipInstance = nullptr;
+                        }							
+                    }
+                }
+            }
+				
 
 			// Handle window about to clsoe
             if (!game::instance().should_continue)

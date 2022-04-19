@@ -32,6 +32,9 @@ namespace CS260
 		std::vector<PlayerInfo> mPlayersState;
 		std::vector<unsigned char> mDisconnectedPlayersIDs;
 		std::vector<AsteroidCreationPacket> mAsteroidsCreated;
+		std::vector<AsteroidUpdatePacket> mAsteroidsUpdate;
+		std::vector<AsteroidDestructionPacket> mAsteroidsDestroyed;
+		std::vector<PlayerDiePacket> mPlayersDied;
 		glm::vec4 mColor;
 		
 	public:
@@ -60,9 +63,17 @@ namespace CS260
 
 		void NotifyDisconnection();
 
+		unsigned char GetPlayerID();
+
 		const std::vector<unsigned char>& GetDisconnectedPlayersIDs();
 
 		const std::vector<AsteroidCreationPacket>& GetCreatedAsteroids();
+		
+		const std::vector<AsteroidUpdatePacket>& GetUpdatedAsteroids();
+		
+		const std::vector<AsteroidDestructionPacket>& GetDestroyedAsteroids();
+		
+		const std::vector<PlayerDiePacket>& GetDiedPlayers();
 
 		glm::vec4 GetColor();
 

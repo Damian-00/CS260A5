@@ -145,10 +145,10 @@ namespace CS260
 			packetSize = sizeof(ObjectCreationPacket);
 			needsACK = true;
 			break;
-		case Packet_Types::ObjectDestruction:
-			packetSize = sizeof(ObjectDestructionPacket);
-			needsACK = true;
-			break;
+		//case Packet_Types::ObjectDestruction:
+		//	packetSize = sizeof(ObjectDestructionPacket);
+		//	needsACK = true;
+		//	break;
 		case Packet_Types::ObjectUpdate:
 			packetSize = sizeof(ObjectUpdatePacket);
 			needsACK = false;
@@ -184,6 +184,18 @@ namespace CS260
 		case Packet_Types::AsteroidCreation:
 			packetSize = sizeof(AsteroidCreationPacket);
 			needsACK = true;
+			break;
+		case Packet_Types::AsteroidUpdate:
+			packetSize = sizeof(AsteroidUpdatePacket);
+			needsACK = false;
+			break;
+		case Packet_Types::AsteroidDestroy:
+			packetSize = sizeof(AsteroidDestructionPacket);
+			needsACK = true;
+			break;
+		case Packet_Types::PlayerDie:
+			packetSize = sizeof(AsteroidUpdatePacket);
+			needsACK = false;
 			break;
 		}
 		

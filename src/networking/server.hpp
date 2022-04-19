@@ -24,9 +24,11 @@ namespace CS260
 		// Player Information
 		PlayerInfo mPlayerInfo;
 		glm::vec4 color;
+		unsigned char mCurrentLifes;
 	};
 	
 	const unsigned disconnectTries = 3; // In fact, there is a total of 4 tries because the first one is not counted
+	const unsigned updateAsteroids = 5000;
 
 	class Server
 	{
@@ -40,6 +42,7 @@ namespace CS260
 		
 		std::vector<unsigned char> mDisconnectedPlayersIDs;
 		std::vector<AsteroidCreationPacket> mAliveAsteroids;
+		unsigned mUpdateAsteroidsTimer;
 
 	public:
 		/*	\fn Server
@@ -67,6 +70,12 @@ namespace CS260
 		void SendAsteroidCreation(unsigned short id, glm::vec2 position, glm::vec2 velocity, float scale, float angle);
 
 		void UpdateAsteroid(unsigned short id, glm::vec2 position, glm::vec2 velocity);
+
+		void SendAsteroidsUpdate();
+
+		void SendPlayerDiePacket(unsigned char playerID);
+
+		void SendAsteroidDestroyPacket(unsigned short objectID);
 
 	private:
 

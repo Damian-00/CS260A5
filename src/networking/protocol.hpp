@@ -30,7 +30,10 @@ namespace CS260 {
 		PlayerDisconnect,
 		ACKDisconnect,
 		NotifyPlayerDisconnection,
-		AsteroidCreation
+		AsteroidCreation,
+		AsteroidUpdate,
+		AsteroidDestroy,
+		PlayerDie
 	};
 
 	
@@ -62,6 +65,12 @@ namespace CS260 {
 		glm::vec2 mPosition;
 		glm::vec2 mVelocity;
 	};
+	struct AsteroidUpdatePacket
+	{
+		unsigned short mID;
+		glm::vec2 mPosition;
+		glm::vec2 mVelocity;
+	};
 
 	struct PlayerInfo
 	{
@@ -80,7 +89,6 @@ namespace CS260 {
 	struct ShipUpdatePacket
 	{
 		PlayerInfo mPlayerInfo;
-
 	};
 
 	struct ObjectCreationPacket {
@@ -98,7 +106,12 @@ namespace CS260 {
 		unsigned char mPlayerID;
 		glm::vec4 color;
 	};
-	
+
+	struct PlayerDiePacket
+	{
+		unsigned char mPlayerID;
+		unsigned char mRemainingLifes;
+	};
 	struct PlayerDisconnectPacket
 	{
 		unsigned char mPlayerID;
@@ -108,9 +121,9 @@ namespace CS260 {
 		unsigned char mPlayerID;
 	};
 
-	struct ObjectDestructionPacket
+	struct AsteroidDestructionPacket
 	{
-		unsigned mObjectId;
+		unsigned short mObjectId;
 	};
 	
 	
