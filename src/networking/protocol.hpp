@@ -33,7 +33,9 @@ namespace CS260 {
 		AsteroidCreation,
 		AsteroidUpdate,
 		AsteroidDestroy,
-		PlayerDie
+		PlayerDie,
+		BulletCreation,	
+		BulletRequest
 	};
 
 	
@@ -89,10 +91,27 @@ namespace CS260 {
 	struct ShipUpdatePacket
 	{
 		PlayerInfo mPlayerInfo;
+	}; 
+
+	struct BulletRequestPacket 
+	{
+		glm::vec2 mPos;
+		glm::vec2 mVel;
+		unsigned mOwnerID;
+		float mDir;
 	};
 
-	struct ObjectCreationPacket {
+	struct BulletCreationPacket 
+	{
+		unsigned mOwnerID;
+		glm::vec2 mPos;
+		glm::vec2 mVel;
+		float mDir;
+		unsigned mObjectID;
+	};
 
+	struct ObjectCreationPacket 
+	{
 		unsigned mObjectId;
 		glm::vec2 mCreatePos;
 	};

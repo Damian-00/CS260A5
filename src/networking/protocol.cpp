@@ -197,6 +197,14 @@ namespace CS260
 			packetSize = sizeof(AsteroidUpdatePacket);
 			needsACK = true;
 			break;
+		case Packet_Types::BulletRequest:
+			packetSize =  sizeof(BulletRequestPacket);
+			needsACK = true;
+			break;
+		case Packet_Types::BulletCreation:
+			packetSize = sizeof(BulletCreationPacket);
+			needsACK = true;
+			break;
 		}
 		
 		if(needsACKPtr)

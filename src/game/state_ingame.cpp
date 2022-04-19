@@ -120,6 +120,7 @@ struct GameObjInst
 
     // Networking variables
     vec4 modColor;
+    unsigned mOwnerID;
 };
 
 // ---------------------------------------------------------------------------
@@ -197,6 +198,8 @@ static void         gameObjInstDestroy(GameObjInst* pInst);
 //static GameObjInst* astCreate(GameObjInst* pSrc);
 static GameObjInst* astCreateClient(const CS260::AsteroidCreationPacket& asteroidInfo);
 static GameObjInst* astCreateServer(GameObjInst* pSrc);
+
+static GameObjInst* bulletCreate(vec2 pos, vec2 vel, float dir, unsigned ownerID, unsigned ID);
 
 // function to calculate the object's velocity after collison
 static void resolveCollision(GameObjInst* pSrc, GameObjInst* pDst, vec2* pNrm);
@@ -358,7 +361,8 @@ void GameStatePlayUpdate(void)
                 vel = { glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr) };
                 vel = vel * BULLET_SPEED;
 
-                gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &spShip->posCurr, &vel, spShip->dirCurr, true, 0);
+                if (!is_server)
+                    client->RequestBullet(spShip->id, vel, spShip->posCurr, spShip->dirCurr);
             }
             // if 'z' pressed
             if (game::instance().input_key_triggered(GLFW_KEY_Z) && (sSpecialCtr >= BOMB_COST)) {
@@ -929,6 +933,24 @@ void GameStatePlayUpdate(void)
             }
 
             server->SendAsteroidsUpdate();
+
+            for (auto& obj : server->mBulletsToCreate) {
+
+                auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID++);
+
+                inst->mOwnerID = obj.mOwnerID; //set the bullet owner
+
+                CS260::BulletCreationPacket sendPCK;
+                sendPCK.mDir = obj.mDir;
+                sendPCK.mObjectID = sLastGeneratedID;
+                sendPCK.mOwnerID = obj.mOwnerID;
+                sendPCK.mPos = obj.mPos;
+                sendPCK.mVel = obj.mVel;
+
+                server->SendBulletToAllClients(sendPCK);
+
+            }
+            server->mBulletsToCreate.clear();
         }		
         else
         {
@@ -1070,6 +1092,14 @@ void GameStatePlayUpdate(void)
                 }
             }
 
+            for (auto& obj : client->mBulletsToCreate) {
+
+                auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID++);
+
+                inst->mOwnerID = obj.mOwnerID; //set the bullet owner
+            }
+            client->mBulletsToCreate.clear();
+			
             //if (client->Connected() && spShip)
             if (client->Connected() && sShipCtr > 0)
                 client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));

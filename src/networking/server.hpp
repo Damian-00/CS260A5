@@ -77,6 +77,9 @@ namespace CS260
 
 		void SendAsteroidDestroyPacket(unsigned short objectID);
 
+		std::vector<BulletRequestPacket> mBulletsToCreate;
+
+		void SendBulletToAllClients(BulletCreationPacket mBullet);
 	private:
 
 		void ReceivePackets();

@@ -1,7 +1,4 @@
 #include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
-#include "client.hpp"
 
 
 #include "utils.hpp"
@@ -327,6 +324,15 @@ namespace CS260
 			mAsteroidsCreated.push_back(receivedPacket);
 		}
 			break;
+		
+		case Packet_Types::BulletCreation:
+
+			BulletCreationPacket receivedPCK;
+			::memcpy(&receivedPCK, packet.mBuffer.data(), sizeof(receivedPCK));
+
+			mBulletsToCreate.push_back(receivedPCK);
+
+			break;
 		case Packet_Types::AsteroidUpdate:
 		{
 			AsteroidUpdatePacket receivedPacket;
@@ -555,6 +561,16 @@ namespace CS260
 	glm::vec4 Client::GetColor()
 	{
 		return mColor;
+	}
+
+	void Client::RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos, float dir)
+	{
+		BulletRequestPacket mPacket;
+		mPacket.mOwnerID = mOwnerID;
+		mPacket.mPos = pos;
+		mPacket.mVel = vel;
+		mPacket.mDir = dir;
+		mProtocol.SendPacket(Packet_Types::BulletRequest, &mPacket);
 	}
 
 }

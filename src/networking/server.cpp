@@ -1,9 +1,4 @@
 #include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
-#include "server.hpp"
 #include "utils.hpp"
 
 namespace CS260
@@ -206,6 +201,13 @@ namespace CS260
 			mProtocol.SendPacket(Packet_Types::AsteroidDestroy, &packet, &client.mEndpoint);
 	}
 
+
+	void Server::SendBulletToAllClients(BulletCreationPacket mBullet)
+	{
+		for (auto& client : mClients)
+			mProtocol.SendPacket(Packet_Types::BulletCreation, &mBullet, &client.mEndpoint);
+	}
+
 	void Server::ReceivePackets()
 	{
 		sockaddr senderAddres;
@@ -335,6 +337,18 @@ namespace CS260
 				if (client.mPlayerInfo.mID == receivedPacket.mPlayerID)
 					client.mDead = false;
 			}				
+			break;
+		}
+		case Packet_Types::BulletRequest:
+		{
+
+			BulletRequestPacket rcpk;
+			size_t size = sizeof(BulletRequestPacket);
+
+			::memcpy(&rcpk, packet.mBuffer.data(), size);
+
+			mBulletsToCreate.push_back(rcpk); // add it to the vector for the state_ingame to generate the bullets afterwards
+
 			break;
 		}
 		}
