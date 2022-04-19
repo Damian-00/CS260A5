@@ -142,7 +142,13 @@ namespace CS260
 
 	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation, bool input)
 	{
+		std::stringstream str;
+		str << "Sending player info Pos: ";
+		str << pos.x;
+		str << ", ";
+		str << pos.y;
 		
+		PrintMessage(str.str());
 		{
 			ShipUpdatePacket myShipPacket;
 			myShipPacket.mPlayerInfo.mID = mID;
@@ -337,7 +343,11 @@ namespace CS260
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			
 			if (receivedPacket.mPlayerID == mID)
+			{
 				PrintMessage("Received player die ourself");
+				// Acknowledge the die packet
+				mProtocol.SendPacket(Packet_Types::PlayerDie, &receivedPacket);
+			}
 			else
 				PrintMessage("Received player die remote");
 			
@@ -349,7 +359,6 @@ namespace CS260
 			
 			if (found == mPlayersDied.end())
 			{
-				mProtocol.SendPacket(Packet_Types::PlayerDie, &receivedPacket);
 				mPlayersDied.push_back(receivedPacket);
 			}
 		}

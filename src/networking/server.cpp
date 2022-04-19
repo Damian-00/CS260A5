@@ -16,7 +16,7 @@ namespace CS260
 		mDisconnectTries(0),
 		mPlayerInfo(playerInfo),
 		color(col),
-		mCurrentLifes(3)
+		mDead(false)
 	{
 	}
 
@@ -180,18 +180,19 @@ namespace CS260
 		}
 	}
 
-	void Server::SendPlayerDiePacket(unsigned char playerID)
+	void Server::SendPlayerDiePacket(unsigned char playerID, unsigned short remainingLifes)
 	{
+		PlayerDiePacket packet;
+		packet.mPlayerID = playerID;
+		packet.mRemainingLifes = remainingLifes;
+		
 		for (auto& client : mClients)
 		{
+			// Update the client dead state
 			if (client.mPlayerInfo.mID == playerID)
-			{
-				client.mCurrentLifes--;
-				PlayerDiePacket packet;
-				packet.mPlayerID = playerID;
-				packet.mRemainingLifes = client.mCurrentLifes;
-				mProtocol.SendPacket(Packet_Types::PlayerDie, &packet, &client.mEndpoint);
-			}
+				client.mDead = true;
+
+			mProtocol.SendPacket(Packet_Types::PlayerDie, &packet, &client.mEndpoint);
 		}
 	}
 
@@ -326,7 +327,14 @@ namespace CS260
 		{
 			PlayerDiePacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
-			mClients.
+			
+			// When receiving a player die packet message from a client it means
+			// that it already received the die packet and is ready to keep playing
+			for (auto& client : mClients)
+			{
+				if (client.mPlayerInfo.mID == receivedPacket.mPlayerID)
+					client.mDead = false;
+			}				
 			break;
 		}
 		}

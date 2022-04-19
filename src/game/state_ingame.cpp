@@ -143,7 +143,7 @@ struct RemoteShipInfo
     unsigned char mPlayerID;
     GameObjInst* mShipInstance;
     uint32_t mScore;
-    long mShipsLeft = 3;
+    unsigned short mShipsLeft = SHIP_INITIAL_NUM;
     bool mDead = false;
 };
 
@@ -778,8 +778,6 @@ void GameStatePlayUpdate(void)
                         continue;
 
 					// TODO: Send explosion particle effect to clients
-                    // create the big explosion
-                    sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 100, 0.0f, 2.0f * PI);
 
 					// Update the corresponding client's position and the lifes remaining
                     // reset the its ship position and direction
@@ -791,13 +789,18 @@ void GameStatePlayUpdate(void)
 							
                             if (ship.mShipsLeft > 0 && !ship.mDead)
                             {
-                                server->SendPlayerDiePacket(ship.mPlayerID);
-
-                                ship.mShipInstance->posCurr = {};
-                                ship.mShipInstance->velCurr = {};
+                                // create the big explosion
+                                sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 100, 0.0f, 2.0f * PI);
+								
+                                // Restart the ship position and direction
+                                ship.mShipInstance->posCurr = {0, 0};
+                                ship.mShipInstance->velCurr = {0, 0};
                                 ship.mShipInstance->dirCurr = 0.0f;
                                 ship.mShipsLeft--;
                                 ship.mDead = true;
+								
+                                // Notify all the clients about this client's death
+                                server->SendPlayerDiePacket(ship.mPlayerID, ship.mShipsLeft);
 
                                 sSpecialCtr = SHIP_SPECIAL_NUM;
 
@@ -825,10 +828,7 @@ void GameStatePlayUpdate(void)
                             }
                         }
                     }
-
                     std::cout << "DIE PACKETS SENT"<< std::endl;
-
-
                     break;
                 }
             }
@@ -860,6 +860,7 @@ void GameStatePlayUpdate(void)
     // Update the network 60 times/seconds
     if (CS260::ms_since(networkClock) > CS260::tickRate)
     {
+        // Server ticks
         if (is_server)
         {
             server->Tick();
@@ -884,25 +885,29 @@ void GameStatePlayUpdate(void)
             // We added a new player
             for (auto& playerInfo : server->GetNewPlayers())
             {
-				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, 3});
+				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, SHIP_INITIAL_NUM });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
 
             // Update the player information
             for (auto& player : server->GetPlayersInfo())
             {
-
                 for (auto& ship : mRemoteShips)
                 {
                     //if it is that players ship
-                    if (ship.mPlayerID == player.mPlayerInfo.mID && !ship.mDead)
+                    if (ship.mPlayerID == player.mPlayerInfo.mID )
                     {
-                        ship.mShipInstance->posCurr = player.mPlayerInfo.pos;
-                        ship.mShipInstance->dirCurr = player.mPlayerInfo.rot;
-                        ship.mShipInstance->velCurr = player.mPlayerInfo.vel;
-                        ship.mShipInstance->inputPressed = player.mPlayerInfo.inputPressed;
+                        ship.mDead = player.mDead;
+                        if (!ship.mDead)
+                        {
+                            ship.mShipInstance->posCurr = player.mPlayerInfo.pos;
+                            ship.mShipInstance->dirCurr = player.mPlayerInfo.rot;
+                            ship.mShipInstance->velCurr = player.mPlayerInfo.vel;
+                            ship.mShipInstance->inputPressed = player.mPlayerInfo.inputPressed;
+                        }
                     }
-                    else { // not that player ship
+                    else 
+                    { // not that player ship
                         server->SendPlayerInfo(player.mEndpoint, { ship.mPlayerID, ship.mShipInstance->posCurr, ship.mShipInstance->dirCurr, ship.mShipInstance->velCurr, ship.mShipInstance->inputPressed });
                     }
                 }
@@ -924,10 +929,7 @@ void GameStatePlayUpdate(void)
         }		
         else
         {
-            if (client->Connected() && spShip)
-                client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
-            
-                spShip->modColor = client->GetColor();
+            spShip->modColor = client->GetColor();
 
             client->Tick();
 			
@@ -1052,14 +1054,8 @@ void GameStatePlayUpdate(void)
                             if (ship.mShipInstance)
                             {
                                 std::cout << "Killing remote player with ID: " << deadPlayer.mPlayerID << std::endl;
-                                
                                 ship.mShipsLeft = deadPlayer.mRemainingLifes;
 								
-                                if (ship.mShipsLeft)
-                                    ship.mShipInstance->posCurr = { 0, 0 };
-                                ship.mShipInstance->velCurr = { 0, 0 };
-                                ship.mShipInstance->dirCurr = 0.0f;
-
                                 if (ship.mShipsLeft == 0)
                                 {
                                     gameObjInstDestroy(ship.mShipInstance);
@@ -1070,7 +1066,9 @@ void GameStatePlayUpdate(void)
                     }
                 }
             }
-				
+
+            if (client->Connected() && spShip)
+                client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
 
 			// Handle window about to clsoe
             if (!game::instance().should_continue)
