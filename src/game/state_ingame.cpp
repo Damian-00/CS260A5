@@ -655,6 +655,8 @@ void GameStatePlayUpdate(void)
                     if (pDst->scale < AST_SIZE_MIN) 
                     {
                         sparkCreate(PTCL_EXPLOSION_M, &pDst->posCurr, (uint32_t)(pDst->scale * 10), pSrc->dirCurr - 0.05f * PI, pSrc->dirCurr + 0.05f * PI, pDst->scale);
+
+                        // TODO: Move this to client logic
                         sScore++;
 
                         if ((sScore % AST_SPECIAL_RATIO) == 0)
@@ -664,6 +666,7 @@ void GameStatePlayUpdate(void)
                         if (sScore == sAstNum * 5)
                             sAstNum = (sAstNum < AST_NUM_MAX) ? (sAstNum * 2) : sAstNum;
 
+                        server->SendAsteroidDestroyPacket(pDst->id);
                         // destroy the asteroid
                         gameObjInstDestroy(pDst);
                     }
@@ -676,9 +679,13 @@ void GameStatePlayUpdate(void)
                         pDst->velCurr = pDst->velCurr + pSrc->velCurr;
 
                         // split the asteroid to 4
-                        //if ((pSrc->pObject->type == TYPE_MISSILE) ||
-                        //    ((pDst->life -= 1.0f) < 0.0f))
-                        //    astCreate(pDst);
+                        if ((pSrc->pObject->type == TYPE_MISSILE) ||
+                            ((pDst->life -= 1.0f) < 0.0f))
+                        {
+                            astCreateServer(pDst);
+                            server->SendAsteroidDestroyPacket(pDst->id);
+                            gameObjInstDestroy(pDst);
+                        }
                     }
 
                     // destroy the bullet
@@ -1473,9 +1480,53 @@ GameObjInst* astCreateClient(const CS260::AsteroidCreationPacket& asteroidInfo)
 
 GameObjInst* astCreateServer(GameObjInst* pSrc)
 {
-    GameObjInst* pInst;
-    vec2         pos, vel;
-    float        t, angle, size;
+    GameObjInst* pInst = nullptr;
+    vec2         pos = {0, 0}, vel = {0, 0};
+    float        t = 0, angle = 0, size = 10.0f;
+
+
+    // Only when the asteroid is destroyed
+    if (pSrc)
+    {
+        float posOffset = pSrc->scale * 0.25f;
+        float velOffset = (AST_SIZE_MAX - pSrc->scale + 1.0f) * 0.25f;
+        float scaleNew = pSrc->scale * 0.5f;
+
+        sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 5, 0.0f * PI - 0.01f * PI, 0.0f * PI + 0.01f * PI, 0.0f, pSrc->scale / AST_SIZE_MAX, &pSrc->velCurr);
+        sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 5, 0.5f * PI - 0.01f * PI, 0.5f * PI + 0.01f * PI, 0.0f, pSrc->scale / AST_SIZE_MAX, &pSrc->velCurr);
+        sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 5, 1.0f * PI - 0.01f * PI, 1.0f * PI + 0.01f * PI, 0.0f, pSrc->scale / AST_SIZE_MAX, &pSrc->velCurr);
+        sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 5, 1.5f * PI - 0.01f * PI, 1.5f * PI + 0.01f * PI, 0.0f, pSrc->scale / AST_SIZE_MAX, &pSrc->velCurr);
+
+        pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true, sLastGeneratedID++);
+        pInst->scale = scaleNew;
+        pInst->posCurr = { pSrc->posCurr.x - posOffset, pSrc->posCurr.y - posOffset };
+        pInst->velCurr = { pSrc->velCurr.x - velOffset, pSrc->velCurr.y - velOffset };
+        pInst->life = pInst->scale / AST_SIZE_MAX * AST_LIFE_MAX;
+        server->SendAsteroidCreation(pInst->id, pInst->posCurr, pInst->velCurr, pInst->scale, angle);
+
+        pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true, sLastGeneratedID++);
+        pInst->scale = scaleNew;
+        pInst->posCurr = { pSrc->posCurr.x + posOffset, pSrc->posCurr.y - posOffset };
+        pInst->velCurr = { pSrc->velCurr.x + velOffset, pSrc->velCurr.y - velOffset };
+        pInst->life = pInst->scale / AST_SIZE_MAX * AST_LIFE_MAX;
+        server->SendAsteroidCreation(pInst->id, pInst->posCurr, pInst->velCurr, pInst->scale, angle);
+
+        pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true, sLastGeneratedID++);
+        pInst->scale = scaleNew;
+        pInst->posCurr = { pSrc->posCurr.x - posOffset, pSrc->posCurr.y + posOffset };
+        pInst->velCurr = { pSrc->velCurr.x - velOffset, pSrc->velCurr.y + velOffset };
+        pInst->life = pInst->scale / AST_SIZE_MAX * AST_LIFE_MAX;
+        server->SendAsteroidCreation(pInst->id, pInst->posCurr, pInst->velCurr, pInst->scale, angle);
+
+        pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true, sLastGeneratedID++);
+        pInst->scale = scaleNew;
+        pInst->posCurr = { pSrc->posCurr.x + posOffset, pSrc->posCurr.y + posOffset };
+        pInst->velCurr = { pSrc->velCurr.x + velOffset, pSrc->velCurr.y + velOffset };
+        pInst->life = pInst->scale / AST_SIZE_MAX * AST_LIFE_MAX;
+        server->SendAsteroidCreation(pInst->id, pInst->posCurr, pInst->velCurr, pInst->scale, angle);
+
+        return pSrc;
+    }
 
     {
         // pick a random angle and velocity magnitude
