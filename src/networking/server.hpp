@@ -24,7 +24,7 @@ namespace CS260
 		// Player Information
 		PlayerInfo mPlayerInfo;
 		glm::vec4 color;
-		unsigned char mCurrentLifes;
+		bool mDead = false;
 	};
 	
 	const unsigned disconnectTries = 3; // In fact, there is a total of 4 tries because the first one is not counted
@@ -73,7 +73,7 @@ namespace CS260
 
 		void SendAsteroidsUpdate();
 
-		void SendPlayerDiePacket(unsigned char playerID);
+		void SendPlayerDiePacket(unsigned char playerID, unsigned short remainingLifes);
 
 		void SendAsteroidDestroyPacket(unsigned short objectID);
 

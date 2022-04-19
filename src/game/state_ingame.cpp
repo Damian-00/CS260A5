@@ -119,26 +119,11 @@ struct GameObjInst
     bool inputPressed;
 
     // Networking variables
-    vec4 modColor ;
+    vec4 modColor;
 };
 
 // ---------------------------------------------------------------------------
 // Static variables
-
-struct PlayerInfo
-{
-    unsigned char playerID;
-    vec2 pos;
-    vec2 velocity;
-};
-
-struct AsteroidInfo
-{
-    unsigned char astID;
-    vec2 pos;
-    vec2 velocity;
-};
-
 // list of original object
 static GameObj  sGameObjList[GAME_OBJ_NUM_MAX];
 static uint32_t sGameObjNum;
@@ -158,7 +143,8 @@ struct RemoteShipInfo
     unsigned char mPlayerID;
     GameObjInst* mShipInstance;
     uint32_t mScore;
-    long mShipsLeft;
+    unsigned short mShipsLeft = SHIP_INITIAL_NUM;
+    bool mDead = false;
 };
 
 static std::vector<RemoteShipInfo> mRemoteShips;
@@ -299,106 +285,112 @@ void GameStatePlayUpdate(void)
             // TODO: Change to RESULT GAME STATE
         }
     } else {
-        if (game::instance().input_key_pressed(GLFW_KEY_UP)) {
+        if (sShipCtr > 0)
+        {
+            if (game::instance().input_key_pressed(GLFW_KEY_UP)) {
 #if 0
-			vec2 acc, u, dir;
+                vec2 acc, u, dir;
 
-			// calculate the current direction vector
-			AEVector2Set	(&dir, glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr));
+                // calculate the current direction vector
+                AEVector2Set(&dir, glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr));
 
-			// calculate the dampening vector
-			AEVec2Scale(&u, &spShip->velCurr, -AEVec2Length(&spShip->velCurr) * 0.01f);//pow(SHIP_DAMP_FORWARD, dt));
+                // calculate the dampening vector
+                AEVec2Scale(&u, &spShip->velCurr, -AEVec2Length(&spShip->velCurr) * 0.01f);//pow(SHIP_DAMP_FORWARD, dt));
 
-			// calculate the acceleration vector and add the dampening vector to it
-			//AEVec2Scale	(&acc, &dir, 0.5f * SHIP_ACCEL_FORWARD * dt * dt);
-			AEVec2Scale	(&acc, &dir, SHIP_ACCEL_FORWARD);
-			AEVec2Add	(&acc, &acc, &u);
+                // calculate the acceleration vector and add the dampening vector to it
+                //AEVec2Scale	(&acc, &dir, 0.5f * SHIP_ACCEL_FORWARD * dt * dt);
+                AEVec2Scale(&acc, &dir, SHIP_ACCEL_FORWARD);
+                AEVec2Add(&acc, &acc, &u);
 
-			// add the velocity to the position
-			//AEVec2Scale	(&u,               &spShip->velCurr, dt);
-			//AEVec2Add	(&spShip->posCurr, &spShip->posCurr, &u);
-			// add the acceleration to the position
-			AEVec2Scale	(&u,               &acc,             0.5f * dt * dt);
-			AEVec2Add	(&spShip->posCurr, &spShip->posCurr, &u);
+                // add the velocity to the position
+                //AEVec2Scale	(&u,               &spShip->velCurr, dt);
+                //AEVec2Add	(&spShip->posCurr, &spShip->posCurr, &u);
+                // add the acceleration to the position
+                AEVec2Scale(&u, &acc, 0.5f * dt * dt);
+                AEVec2Add(&spShip->posCurr, &spShip->posCurr, &u);
 
-			// add the acceleration to the velocity
-			AEVec2Scale	(&u,               &acc, dt);
-			AEVec2Add	(&spShip->velCurr, &acc, &spShip->velCurr);
+                // add the acceleration to the velocity
+                AEVec2Scale(&u, &acc, dt);
+                AEVec2Add(&spShip->velCurr, &acc, &spShip->velCurr);
 
-			AEVec2Scale	(&u, &dir, -spShip->scale);
-			AEVec2Add	(&u, &u,   &spShip->posCurr);
+                AEVec2Scale(&u, &dir, -spShip->scale);
+                AEVec2Add(&u, &u, &spShip->posCurr);
 
-			sparkCreate(PTCL_EXHAUST, &u, 2, spShip->dirCurr + 0.8f * PI, spShip->dirCurr + 1.2f * PI);
+                sparkCreate(PTCL_EXHAUST, &u, 2, spShip->dirCurr + 0.8f * PI, spShip->dirCurr + 1.2f * PI);
 #else
-            vec2 pos, dir;
-            dir             = {glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr)};
-            pos             = dir;
-            dir             = dir * (SHIP_ACCEL_FORWARD * dt);
-            spShip->velCurr = spShip->velCurr + dir;
-            spShip->velCurr = spShip->velCurr * glm::pow(SHIP_DAMP_FORWARD, dt);
+                vec2 pos, dir;
+                dir = { glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr) };
+                pos = dir;
+                dir = dir * (SHIP_ACCEL_FORWARD * dt);
+                spShip->velCurr = spShip->velCurr + dir;
+                spShip->velCurr = spShip->velCurr * glm::pow(SHIP_DAMP_FORWARD, dt);
 
-            pos = pos * -spShip->scale;
-            pos = pos + spShip->posCurr;
+                pos = pos * -spShip->scale;
+                pos = pos + spShip->posCurr;
 
-            sparkCreate(PTCL_EXHAUST, &pos, 2, spShip->dirCurr + 0.8f * PI, spShip->dirCurr + 1.2f * PI);
+                sparkCreate(PTCL_EXHAUST, &pos, 2, spShip->dirCurr + 0.8f * PI, spShip->dirCurr + 1.2f * PI);
 #endif
-        }
-        if (game::instance().input_key_pressed(GLFW_KEY_DOWN)) {
-            vec2 dir;
-
-            dir             = {glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr)};
-            dir             = dir * SHIP_ACCEL_BACKWARD * dt;
-            spShip->velCurr = spShip->velCurr + dir;
-            spShip->velCurr = spShip->velCurr * glm::pow(SHIP_DAMP_BACKWARD, dt);
-        }
-        if (game::instance().input_key_pressed(GLFW_KEY_LEFT)) {
-            sShipRotSpeed += (SHIP_ROT_SPEED - sShipRotSpeed) * 0.1f;
-            spShip->dirCurr += sShipRotSpeed * dt;
-            spShip->dirCurr = wrap(spShip->dirCurr, -PI, PI);
-        } else if (game::instance().input_key_pressed(GLFW_KEY_RIGHT)) {
-            sShipRotSpeed += (SHIP_ROT_SPEED - sShipRotSpeed) * 0.1f;
-            spShip->dirCurr -= sShipRotSpeed * dt;
-            spShip->dirCurr = wrap(spShip->dirCurr, -PI, PI);
-        } else {
-            sShipRotSpeed = 0.0f;
-        }
-        if (game::instance().input_key_triggered(GLFW_KEY_SPACE)) {
-            vec2 vel;
-
-            vel = {glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr)};
-            vel = vel * BULLET_SPEED;
-
-            gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &spShip->posCurr, &vel, spShip->dirCurr, true, 0);
-        }
-        // if 'z' pressed
-        if (game::instance().input_key_triggered(GLFW_KEY_Z) && (sSpecialCtr >= BOMB_COST)) {
-            uint32_t i;
-
-            // make sure there is no bomb is active currently
-            for (i = 0; i < GAME_OBJ_INST_NUM_MAX; i++)
-                if ((sGameObjInstList[i].flag & FLAG_ACTIVE) &&
-                    (sGameObjInstList[i].pObject->type == TYPE_BOMB))
-                    break;
-
-            // if no bomb is active currently, create one
-            if (i == GAME_OBJ_INST_NUM_MAX) {
-                sSpecialCtr -= BOMB_COST;
-                gameObjInstCreate(TYPE_BOMB, BOMB_SIZE, &spShip->posCurr, 0, 0, true, 0);
             }
-        }
-        // if 'x' pressed
-        if (game::instance().input_key_pressed(GLFW_KEY_X) && (sSpecialCtr >= MISSILE_COST)) {
-            sSpecialCtr -= MISSILE_COST;
+            if (game::instance().input_key_pressed(GLFW_KEY_DOWN)) {
+                vec2 dir;
 
-            float dir = spShip->dirCurr;
-            vec2  vel = spShip->velCurr;
-            vec2  pos;
+                dir = { glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr) };
+                dir = dir * SHIP_ACCEL_BACKWARD * dt;
+                spShip->velCurr = spShip->velCurr + dir;
+                spShip->velCurr = spShip->velCurr * glm::pow(SHIP_DAMP_BACKWARD, dt);
+            }
+            if (game::instance().input_key_pressed(GLFW_KEY_LEFT)) {
+                sShipRotSpeed += (SHIP_ROT_SPEED - sShipRotSpeed) * 0.1f;
+                spShip->dirCurr += sShipRotSpeed * dt;
+                spShip->dirCurr = wrap(spShip->dirCurr, -PI, PI);
+            }
+            else if (game::instance().input_key_pressed(GLFW_KEY_RIGHT)) {
+                sShipRotSpeed += (SHIP_ROT_SPEED - sShipRotSpeed) * 0.1f;
+                spShip->dirCurr -= sShipRotSpeed * dt;
+                spShip->dirCurr = wrap(spShip->dirCurr, -PI, PI);
+            }
+            else {
+                sShipRotSpeed = 0.0f;
+            }
+            if (game::instance().input_key_triggered(GLFW_KEY_SPACE)) {
+                vec2 vel;
 
-            pos = {glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr)};
-            pos = pos * spShip->scale * 0.5f;
-            pos = pos + spShip->posCurr;
+                vel = { glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr) };
+                vel = vel * BULLET_SPEED;
 
-            gameObjInstCreate(TYPE_MISSILE, 1.0f, &pos, &vel, dir, true, 0);
+                gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &spShip->posCurr, &vel, spShip->dirCurr, true, 0);
+            }
+            // if 'z' pressed
+            if (game::instance().input_key_triggered(GLFW_KEY_Z) && (sSpecialCtr >= BOMB_COST)) {
+                uint32_t i;
+
+                // make sure there is no bomb is active currently
+                for (i = 0; i < GAME_OBJ_INST_NUM_MAX; i++)
+                    if ((sGameObjInstList[i].flag & FLAG_ACTIVE) &&
+                        (sGameObjInstList[i].pObject->type == TYPE_BOMB))
+                        break;
+
+                // if no bomb is active currently, create one
+                if (i == GAME_OBJ_INST_NUM_MAX) {
+                    sSpecialCtr -= BOMB_COST;
+                    gameObjInstCreate(TYPE_BOMB, BOMB_SIZE, &spShip->posCurr, 0, 0, true, 0);
+                }
+            }
+            // if 'x' pressed
+            if (game::instance().input_key_pressed(GLFW_KEY_X) && (sSpecialCtr >= MISSILE_COST)) {
+
+                sSpecialCtr -= MISSILE_COST;
+
+                float dir = spShip->dirCurr;
+                vec2  vel = spShip->velCurr;
+                vec2  pos;
+
+                pos = { glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr) };
+                pos = pos * spShip->scale * 0.5f;
+                pos = pos + spShip->posCurr;
+
+                gameObjInstCreate(TYPE_MISSILE, 1.0f, &pos, &vel, dir, true, 0);
+            }
         }
     }
 
@@ -483,11 +475,14 @@ void GameStatePlayUpdate(void)
             
                 for (auto& ship : currentShips)
                 {
-                    float distance = glm::distance2(ship->posCurr, pInst->posCurr);
-                    if (distance < minDistance)
+                    if (ship)
                     {
-                        minDistance = distance;
-                        nearestShip = ship;
+                        float distance = glm::distance2(ship->posCurr, pInst->posCurr);
+                        if (distance < minDistance)
+                        {
+                            minDistance = distance;
+                            nearestShip = ship;
+                        }
                     }
                 }
             
@@ -786,23 +781,29 @@ void GameStatePlayUpdate(void)
                         continue;
 
 					// TODO: Send explosion particle effect to clients
-                    // create the big explosion
-                    sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 100, 0.0f, 2.0f * PI);
 
 					// Update the corresponding client's position and the lifes remaining
                     // reset the its ship position and direction
                     for (auto& ship : mRemoteShips)
                     {
-                        if (ship.mShipInstance->id == pSrc->id)
+                        if (ship.mShipInstance == pSrc)
                         {
-                            if (ship.mShipsLeft > 0)
+                            std::cout << "SENDING PLAYER DIE PACKET ID: " << ship.mPlayerID << std::endl;
+							
+                            if (ship.mShipsLeft > 0 && !ship.mDead)
                             {
-                                server->SendPlayerDiePacket(ship.mPlayerID);
-
-                                ship.mShipInstance->posCurr = {};
-                                ship.mShipInstance->velCurr = {};
+                                // create the big explosion
+                                sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 100, 0.0f, 2.0f * PI);
+								
+                                // Restart the ship position and direction
+                                ship.mShipInstance->posCurr = {0, 0};
+                                ship.mShipInstance->velCurr = {0, 0};
                                 ship.mShipInstance->dirCurr = 0.0f;
                                 ship.mShipsLeft--;
+                                ship.mDead = true;
+								
+                                // Notify all the clients about this client's death
+                                server->SendPlayerDiePacket(ship.mPlayerID, ship.mShipsLeft);
 
                                 sSpecialCtr = SHIP_SPECIAL_NUM;
 
@@ -827,18 +828,10 @@ void GameStatePlayUpdate(void)
                                         gameObjInstDestroy(pInst);
                                     }
                                 }
-
-                                // if counter is less than 0, game over
-                                if (sShipCtr == 0) 
-                                {
-                                    //sGameStateChangeCtr = 2.0;
-                                    gameObjInstDestroy(ship.mShipInstance);
-                                    ship.mShipInstance = nullptr;
-                                }
                             }
                         }
                     }
-
+                    std::cout << "DIE PACKETS SENT"<< std::endl;
                     break;
                 }
             }
@@ -870,6 +863,7 @@ void GameStatePlayUpdate(void)
     // Update the network 60 times/seconds
     if (CS260::ms_since(networkClock) > CS260::tickRate)
     {
+        // Server ticks
         if (is_server)
         {
             server->Tick();
@@ -894,25 +888,29 @@ void GameStatePlayUpdate(void)
             // We added a new player
             for (auto& playerInfo : server->GetNewPlayers())
             {
-				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, 3});
+				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, SHIP_INITIAL_NUM });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
 
             // Update the player information
             for (auto& player : server->GetPlayersInfo())
             {
-
                 for (auto& ship : mRemoteShips)
                 {
                     //if it is that players ship
-                    if (ship.mPlayerID == player.mPlayerInfo.mID)
+                    if (ship.mPlayerID == player.mPlayerInfo.mID )
                     {
-                        ship.mShipInstance->posCurr = player.mPlayerInfo.pos;
-                        ship.mShipInstance->dirCurr = player.mPlayerInfo.rot;
-                        ship.mShipInstance->velCurr = player.mPlayerInfo.vel;
-                        ship.mShipInstance->inputPressed = player.mPlayerInfo.inputPressed;
+                        ship.mDead = player.mDead;
+                        if (!ship.mDead)
+                        {
+                            ship.mShipInstance->posCurr = player.mPlayerInfo.pos;
+                            ship.mShipInstance->dirCurr = player.mPlayerInfo.rot;
+                            ship.mShipInstance->velCurr = player.mPlayerInfo.vel;
+                            ship.mShipInstance->inputPressed = player.mPlayerInfo.inputPressed;
+                        }
                     }
-                    else { // not that player ship
+                    else 
+                    { // not that player ship
                         server->SendPlayerInfo(player.mEndpoint, { ship.mPlayerID, ship.mShipInstance->posCurr, ship.mShipInstance->dirCurr, ship.mShipInstance->velCurr, ship.mShipInstance->inputPressed });
                     }
                 }
@@ -934,9 +932,7 @@ void GameStatePlayUpdate(void)
         }		
         else
         {
-            if (client->Connected())
-                client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
-            
+            if(spShip)
                 spShip->modColor = client->GetColor();
 
             client->Tick();
@@ -947,14 +943,12 @@ void GameStatePlayUpdate(void)
                 // Destroy the ship
                 for (auto& ship : mRemoteShips)
                 {
-                    if (ship.mPlayerID == playerID)
+                    if (ship.mPlayerID == playerID && ship.mShipInstance)
                         gameObjInstDestroy(ship.mShipInstance);
                 }
 
-                std::remove_if(mRemoteShips.begin(), mRemoteShips.end(), [playerID](const RemoteShipInfo& ship)
-                    {
-                        return ship.mPlayerID == playerID;
-                    });
+                mRemoteShips.erase(std::find_if(mRemoteShips.begin(), mRemoteShips.end(), [playerID](const RemoteShipInfo& ship)
+                    { return ship.mPlayerID == playerID; }));
             }
 
             // Check if any new player connected
@@ -970,7 +964,7 @@ void GameStatePlayUpdate(void)
             {
                 for (auto& ship : mRemoteShips)
                 {
-                    if (ship.mPlayerID == playerInfo.mID)
+                    if (ship.mPlayerID == playerInfo.mID && ship.mShipInstance)
                     {
                         ship.mShipInstance->posCurr = playerInfo.pos;
                         ship.mShipInstance->dirCurr = playerInfo.rot;
@@ -1027,36 +1021,58 @@ void GameStatePlayUpdate(void)
 			// Check for dead players
             for (auto& deadPlayer : client->GetDiedPlayers())
             {
+                std::cout << "Player ID: " << deadPlayer.mPlayerID << std::endl;
+                std::cout << "Client ID: " << client->GetPlayerID() << std::endl;
+				
                 if (deadPlayer.mPlayerID == client->GetPlayerID())
                 {
-                    spShip->posCurr = { 0, 0 };
-                    spShip->velCurr = { 0, 0 };
-                    spShip->dirCurr = 0.0f;
-                    sShipCtr = deadPlayer.mRemainingLifes;
-                    if (sShipCtr == 0)
+                    if (sShipCtr > 0)
                     {
-                        gameObjInstDestroy(spShip);
-                        spShip = nullptr;
+                        std::cout << "Killing player with ID: " << deadPlayer.mPlayerID << std::endl;
+                        sparkCreate(PTCL_EXPLOSION_L, &spShip->posCurr, 100, 0.0f, 2.0f * PI);
+                        
+                        sShipCtr = deadPlayer.mRemainingLifes;
+						
+						if(sShipCtr)
+                            spShip->posCurr = { 0, 0 };
+                        spShip->velCurr = { 0, 0 };
+                        spShip->dirCurr = 0.0f;
+
+                        //if (sShipCtr == 0)
+                        //{
+                        //    gameObjInstDestroy(spShip);
+                        //    spShip = nullptr;
+                        //}
                     }
                 }
                 else
-                for (auto& ship : mRemoteShips)
                 {
-                    if (deadPlayer.mPlayerID == ship.mPlayerID)
+                    for (auto& ship : mRemoteShips)
                     {
-                        ship.mShipInstance->posCurr = {0, 0};
-                        ship.mShipInstance->velCurr = {0, 0};
-                        ship.mShipInstance->dirCurr = 0.0f;
-                        ship.mShipsLeft = deadPlayer.mRemainingLifes;
-                        if (ship.mShipsLeft == 0)
+                        std::cout << "Player ID: " << deadPlayer.mPlayerID<<std::endl;
+                        std::cout << "Remote ID: " << ship.mPlayerID << std::endl;
+                        if (deadPlayer.mPlayerID == ship.mPlayerID)
                         {
-                            gameObjInstDestroy(ship.mShipInstance);
-                            ship.mShipInstance = nullptr;
-                        }							
+                            //if (ship.mShipInstance)
+                            if (ship.mShipsLeft > 0)
+                            {
+                                std::cout << "Killing remote player with ID: " << deadPlayer.mPlayerID << std::endl;
+                                ship.mShipsLeft = deadPlayer.mRemainingLifes;
+								
+                                //if (ship.mShipsLeft == 0)
+                                //{
+                                //    gameObjInstDestroy(ship.mShipInstance);
+                                //    ship.mShipInstance = nullptr;
+                                //}
+                            }
+                        }
                     }
                 }
             }
-				
+
+            //if (client->Connected() && spShip)
+            if (client->Connected() && sShipCtr > 0)
+                client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
 
 			// Handle window about to clsoe
             if (!game::instance().should_continue)
@@ -1123,7 +1139,7 @@ void GameStatePlayDraw(void)
             sprintf(strBuffer, "Player#: %d", i + 1);
             game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance->modColor);
 
-            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
+            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft);
             game::instance().font_default()->render(strBuffer, i * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance->modColor);
 
             sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
@@ -1135,24 +1151,38 @@ void GameStatePlayDraw(void)
         const unsigned totalShips = mRemoteShips.size() + 1;
 
         sprintf(strBuffer, "Player#: %d", 1);
-        game::instance().font_default()->render(strBuffer, 0, h - 10, 24, vp, spShip->modColor);
+        game::instance().font_default()->render(strBuffer, 0, h - 10, 24, vp, spShip ? spShip->modColor : glm::vec4(1.0f));
 
         sprintf(strBuffer, "Ships Left: %d", sShipCtr >= 0 ? sShipCtr : 0);
-        game::instance().font_default()->render(strBuffer, 0, h - 35, 24, vp, spShip->modColor);
+        game::instance().font_default()->render(strBuffer, 0, h - 35, 24, vp, spShip ? spShip->modColor : glm::vec4(1.0f));
 
         sprintf(strBuffer, "Score#: %d", sScore);
-        game::instance().font_default()->render(strBuffer, 0, h - 60, 24, vp, spShip->modColor);
+        game::instance().font_default()->render(strBuffer, 0, h - 60, 24, vp, spShip ? spShip->modColor : glm::vec4(1.0f));
 
+        if (sShipCtr == 0)
+        {
+            sprintf(strBuffer, "Game Over Player#: 1");
+            game::instance().font_default()->render(strBuffer, spShip->posCurr.x, spShip->posCurr.y, 24, vp, spShip->modColor);
+        }
+			
         for (unsigned i = 0; i < mRemoteShips.size(); ++i)
         {
-            sprintf(strBuffer, "Player#: %d", i + 2);
-            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+            {
+                sprintf(strBuffer, "Player#: %d", i + 2);
+                game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 10, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
 
-            sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
-            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+                sprintf(strBuffer, "Ships Left: %d", mRemoteShips[i].mShipsLeft >= 0 ? mRemoteShips[i].mShipsLeft : 0);
+                game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 35, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
 
-            sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
-            game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance->modColor);
+                sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
+                game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
+            }
+            if (mRemoteShips[i].mShipsLeft == 0)
+            {
+                sprintf(strBuffer, "Game Over Player#: %d", i + 2);
+                game::instance().font_default()->render(strBuffer, mRemoteShips[i].mShipInstance->posCurr.x, mRemoteShips[i].mShipInstance->posCurr.y, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
+            }
+				
         }
     }
 

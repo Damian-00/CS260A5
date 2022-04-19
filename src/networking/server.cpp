@@ -16,7 +16,7 @@ namespace CS260
 		mDisconnectTries(0),
 		mPlayerInfo(playerInfo),
 		color(col),
-		mCurrentLifes(3)
+		mDead(false)
 	{
 	}
 
@@ -129,7 +129,7 @@ namespace CS260
 		ShipUpdatePacket mPacket;
 		mPacket.mPlayerInfo = _playerinfo;
 
-		PrintMessage("Sending player info with id " + std::to_string(static_cast<int>(_playerinfo.mID)));
+		//PrintMessage("Sending player info with id " + std::to_string(static_cast<int>(_playerinfo.mID)));
 		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
 	}
 
@@ -180,18 +180,19 @@ namespace CS260
 		}
 	}
 
-	void Server::SendPlayerDiePacket(unsigned char playerID)
+	void Server::SendPlayerDiePacket(unsigned char playerID, unsigned short remainingLifes)
 	{
+		PlayerDiePacket packet;
+		packet.mPlayerID = playerID;
+		packet.mRemainingLifes = remainingLifes;
+		
 		for (auto& client : mClients)
 		{
-			if (client.mCurrentLifes > 0)
-			{
-				client.mCurrentLifes--;
-				PlayerDiePacket packet;
-				packet.mPlayerID = playerID;
-				packet.mRemainingLifes = client.mCurrentLifes;
-				mProtocol.SendPacket(Packet_Types::PlayerDie, &packet, &client.mEndpoint);
-			}
+			// Update the client dead state
+			if (client.mPlayerInfo.mID == playerID)
+				client.mDead = true;
+
+			mProtocol.SendPacket(Packet_Types::PlayerDie, &packet, &client.mEndpoint);
 		}
 	}
 
@@ -319,6 +320,21 @@ namespace CS260
 			mDisconnectedPlayersIDs.push_back(receivedPacket.mPlayerID);
 			
 			NotifyPlayerDisconnection(receivedPacket.mPlayerID);
+			break;
+		}
+		// We received the last disconnection ACK so remove the client from the list
+		case Packet_Types::PlayerDie:
+		{
+			PlayerDiePacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			
+			// When receiving a player die packet message from a client it means
+			// that it already received the die packet and is ready to keep playing
+			for (auto& client : mClients)
+			{
+				if (client.mPlayerInfo.mID == receivedPacket.mPlayerID)
+					client.mDead = false;
+			}				
 			break;
 		}
 		}

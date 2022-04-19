@@ -83,7 +83,9 @@ namespace CS260
 		mPlayersDied.clear();
 
 		ReceiveMessages();
+
 		mProtocol.Tick();
+		
 		HandleTimeOut();
 		////mPlayersState.clear();
 
@@ -140,7 +142,13 @@ namespace CS260
 
 	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation, bool input)
 	{
+		std::stringstream str;
+		str << "Sending player info Pos: ";
+		str << pos.x;
+		str << ", ";
+		str << pos.y;
 		
+		PrintMessage(str.str());
 		{
 			ShipUpdatePacket myShipPacket;
 			myShipPacket.mPlayerInfo.mID = mID;
@@ -231,7 +239,10 @@ namespace CS260
 		// The server is constantly sending messages, so the timer should be updated on each tick
 		// If not, something bad happened and we force the application to close
 		if (mKeepAliveTimer > timeOutTimer)
+		{
 			mClose = true;
+			PrintMessage("Exiting by timeout of server");
+		}
 	}
 
 	void Client::HandleReceivedMessage(ProtocolPacket& packet, Packet_Types type)
@@ -251,21 +262,17 @@ namespace CS260
 
 			ShipUpdatePacket recPacket;
 			memcpy(&recPacket, packet.mBuffer.data(), sizeof(recPacket));
-			if (mID != recPacket.mPlayerInfo.mID){
+			if (mID != recPacket.mPlayerInfo.mID)
+			{
 				//not my ship, so store the data
-
-				for (auto& i : mPlayersState) {
-
-					if (i.mID == recPacket.mPlayerInfo.mID) {
-
+				for (auto& i : mPlayersState) 
+				{
+					if (i.mID == recPacket.mPlayerInfo.mID) 
+					{
 						i = recPacket.mPlayerInfo;
-
 					}
-
 				}
-
 			}
-
 			break;
 		case Packet_Types::SYN:
 			break;
@@ -295,6 +302,7 @@ namespace CS260
 		case Packet_Types::PlayerDisconnect:
 		{
 			mClose = true;
+			PrintMessage("Forced to disconnect by server");
 		}
 		break;
 		case Packet_Types::ACKDisconnect:
@@ -337,7 +345,26 @@ namespace CS260
 		{
 			PlayerDiePacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
-			mPlayersDied.push_back(receivedPacket);
+			
+			if (receivedPacket.mPlayerID == mID)
+			{
+				PrintMessage("Received player die ourself");
+				// Acknowledge the die packet
+				mProtocol.SendPacket(Packet_Types::PlayerDie, &receivedPacket);
+			}
+			else
+				PrintMessage("Received player die remote");
+			
+			auto found = std::find_if(mPlayersDied.begin(), mPlayersDied.end(), [&](auto&playerInfo)
+				{
+					return playerInfo.mPlayerID == receivedPacket.mPlayerID;
+				}
+			);
+			
+			if (found == mPlayersDied.end())
+			{
+				mPlayersDied.push_back(receivedPacket);
+			}
 		}
 		break;
 		}
