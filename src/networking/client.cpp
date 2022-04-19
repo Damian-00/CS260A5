@@ -83,7 +83,9 @@ namespace CS260
 		mPlayersDied.clear();
 
 		ReceiveMessages();
+
 		mProtocol.Tick();
+		
 		HandleTimeOut();
 		////mPlayersState.clear();
 
@@ -251,21 +253,17 @@ namespace CS260
 
 			ShipUpdatePacket recPacket;
 			memcpy(&recPacket, packet.mBuffer.data(), sizeof(recPacket));
-			if (mID != recPacket.mPlayerInfo.mID){
+			if (mID != recPacket.mPlayerInfo.mID)
+			{
 				//not my ship, so store the data
-
-				for (auto& i : mPlayersState) {
-
-					if (i.mID == recPacket.mPlayerInfo.mID) {
-
+				for (auto& i : mPlayersState) 
+				{
+					if (i.mID == recPacket.mPlayerInfo.mID) 
+					{
 						i = recPacket.mPlayerInfo;
-
 					}
-
 				}
-
 			}
-
 			break;
 		case Packet_Types::SYN:
 			break;
@@ -337,7 +335,23 @@ namespace CS260
 		{
 			PlayerDiePacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
-			mPlayersDied.push_back(receivedPacket);
+			
+			if (receivedPacket.mPlayerID == mID)
+				PrintMessage("Received player die ourself");
+			else
+				PrintMessage("Received player die remote");
+			
+			auto found = std::find_if(mPlayersDied.begin(), mPlayersDied.end(), [&](auto&playerInfo)
+				{
+					return playerInfo.mPlayerID == receivedPacket.mPlayerID;
+				}
+			);
+			
+			if (found == mPlayersDied.end())
+			{
+				mProtocol.SendPacket(Packet_Types::PlayerDie, &receivedPacket);
+				mPlayersDied.push_back(receivedPacket);
+			}
 		}
 		break;
 		}

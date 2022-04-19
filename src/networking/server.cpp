@@ -129,7 +129,7 @@ namespace CS260
 		ShipUpdatePacket mPacket;
 		mPacket.mPlayerInfo = _playerinfo;
 
-		PrintMessage("Sending player info with id " + std::to_string(static_cast<int>(_playerinfo.mID)));
+		//PrintMessage("Sending player info with id " + std::to_string(static_cast<int>(_playerinfo.mID)));
 		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
 	}
 
@@ -184,7 +184,7 @@ namespace CS260
 	{
 		for (auto& client : mClients)
 		{
-			if (client.mCurrentLifes > 0)
+			if (client.mPlayerInfo.mID == playerID)
 			{
 				client.mCurrentLifes--;
 				PlayerDiePacket packet;
@@ -319,6 +319,14 @@ namespace CS260
 			mDisconnectedPlayersIDs.push_back(receivedPacket.mPlayerID);
 			
 			NotifyPlayerDisconnection(receivedPacket.mPlayerID);
+			break;
+		}
+		// We received the last disconnection ACK so remove the client from the list
+		case Packet_Types::PlayerDie:
+		{
+			PlayerDiePacket receivedPacket;
+			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
+			mClients.
 			break;
 		}
 		}

@@ -195,7 +195,7 @@ namespace CS260
 			break;
 		case Packet_Types::PlayerDie:
 			packetSize = sizeof(AsteroidUpdatePacket);
-			needsACK = false;
+			needsACK = true;
 			break;
 		}
 		
