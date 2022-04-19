@@ -1,6 +1,7 @@
 #include "client.hpp"
 #include "client.hpp"
 #include "client.hpp"
+#include "client.hpp"
 
 
 #include "utils.hpp"
@@ -512,6 +513,11 @@ namespace CS260
 	const std::vector<AsteroidUpdatePacket>& Client::GetUpdatedAsteroids()
 	{
 		return mAsteroidsUpdate;
+	}
+
+	const std::vector<AsteroidDestructionPacket>& Client::GetDestroyedAsteroids()
+	{
+		return mAsteroidsDestroyed;
 	}
 
 	const std::vector<PlayerDiePacket>& Client::GetDiedPlayers()
