@@ -246,7 +246,6 @@ namespace CS260
 	{
 		sockaddr senderAddres;
 		socklen_t size = sizeof(senderAddres);
-		PlayerInfo packet;
 		WSAPOLLFD poll;
 		poll.fd = mSocket;
 		poll.events = POLLIN;
@@ -262,7 +261,6 @@ namespace CS260
 			{
 				ProtocolPacket packet;
 				Packet_Types type;
-				sockaddr senderAddress;
 				unsigned size = 0;
 
 				mProtocol.ReceivePacket(&packet, &size, &type, &senderAddres);
