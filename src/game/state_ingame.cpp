@@ -978,7 +978,7 @@ void GameStatePlayUpdate(void)
 
             server->SendAsteroidsUpdate();
 
-            for (auto& obj : server->mBulletsToCreate) {
+            for (auto& obj : server->GetBulletsToCreate()) {
 
                 auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID);
 
@@ -994,7 +994,6 @@ void GameStatePlayUpdate(void)
                 server->SendBulletToAllClients(sendPCK);
 
             }
-            server->mBulletsToCreate.clear();
 
 
 
@@ -1160,14 +1159,14 @@ void GameStatePlayUpdate(void)
             }
 
             // Bullet creation
-            for (auto& obj : client->mBulletsToCreate) {
+            for (auto& obj : client->GetBulletsToCreate()) {
 
                 auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID++);
 
                 inst->mOwnerID = obj.mOwnerID; //set the bullet owner
                 inst->id = obj.mObjectID;
             }
-            client->mBulletsToCreate.clear();
+           
 
             // Bullet Destruction
             for (auto& bulletInfo : client->GetBulletsDestroyed())

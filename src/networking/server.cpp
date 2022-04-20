@@ -70,6 +70,8 @@ namespace CS260
 		
 		mDisconnectedPlayersIDs.clear();
 		mNewPlayersOnFrame.clear();
+		mBulletsToCreate.clear();
+
 		
 		// Handle all the receive packets
 		ReceivePackets();
@@ -118,6 +120,11 @@ namespace CS260
 	const std::vector<unsigned char>& Server::GetDisconnectedPlayersIDs()
 	{
 		return mDisconnectedPlayersIDs;
+	}
+
+	std::vector<BulletRequestPacket> Server::GetBulletsToCreate()
+	{
+		return mBulletsToCreate;
 	}
 
 	void Server::SendPlayerInfo(sockaddr _endpoint, PlayerInfo _playerinfo)
@@ -288,7 +295,15 @@ namespace CS260
 			SYNACKPacket SYNACKpacket;
 			SYNACKpacket.mPlayerID = mCurrentID++;
 
-			glm::vec4 color(((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), 1.0f);
+			glm::vec4 color(((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), 1.0f); 
+
+			//avoid colors being too dark
+			for (int i = 0; i < 3; i++) {
+				if (color[i] < 0.5) {
+					color[i] = 0.5;
+				}
+			}
+
 			SYNACKpacket.color = color;
 
 			PrintMessage("Sending SYNACK to client with id " + std::to_string(static_cast<int>(SYNACKpacket.mPlayerID)));

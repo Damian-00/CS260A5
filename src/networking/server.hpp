@@ -44,6 +44,7 @@ namespace CS260
 		std::vector<AsteroidCreationPacket> mAliveAsteroids;
 		unsigned mUpdateAsteroidsTimer;
 
+		std::vector<BulletRequestPacket> mBulletsToCreate;
 	public:
 		/*	\fn Server
 		\brief	Server constructor following RAII design
@@ -63,6 +64,8 @@ namespace CS260
 		
 		std::vector<ClientInfo> GetPlayersInfo();
 
+		std::vector<BulletRequestPacket> GetBulletsToCreate();
+
 		const std::vector<unsigned char>& GetDisconnectedPlayersIDs();
 
 		void SendPlayerInfo(sockaddr _endpoint, PlayerInfo _playerinfo);
@@ -76,8 +79,6 @@ namespace CS260
 		void SendPlayerDiePacket(unsigned char playerID, unsigned short remainingLifes);
 
 		void SendAsteroidDestroyPacket(unsigned short objectID);
-
-		std::vector<BulletRequestPacket> mBulletsToCreate;
 
 		void SendBulletToAllClients(BulletCreationPacket mBullet);
 
@@ -99,6 +100,8 @@ namespace CS260
 		void NotifyPlayerDisconnection(unsigned char playerID);
 
 		void HandleDisconnection();
+
+		
 
 		/*	\fn SendRST
 		\brief	Sends reset message

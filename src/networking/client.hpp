@@ -38,6 +38,9 @@ namespace CS260
 		std::vector<PlayerDiePacket> mPlayersDied;
 		std::vector<BulletDestroyPacket> mBulletsToDestroy;
 		glm::vec4 mColor;
+		std::vector<BulletCreationPacket> mBulletsToCreate;
+
+		std::vector<ScorePacket> mScorePacketsToHandle;
 		
 	public:
 
@@ -83,9 +86,11 @@ namespace CS260
 
 		void RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos , float dir);
 
-		std::vector<BulletCreationPacket> mBulletsToCreate;
+		std::vector<BulletCreationPacket> GetBulletsToCreate();
 
-		std::vector<ScorePacket> mScorePacketsToHandle;
+		std::vector<ScorePacket> GetScorePacketsToHandle();
+
+
 
 	private:
 		/*	\fn ConnectToServer

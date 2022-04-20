@@ -80,6 +80,8 @@ namespace CS260
 		mAsteroidsDestroyed.clear();
 		mBulletsToDestroy.clear();
 		mPlayersDied.clear();
+		mScorePacketsToHandle.clear();
+		mBulletsToCreate.clear();
 
 		ReceiveMessages();
 
@@ -595,6 +597,16 @@ namespace CS260
 		mPacket.mVel = vel;
 		mPacket.mDir = dir;
 		mProtocol.SendPacket(Packet_Types::BulletRequest, &mPacket);
+	}
+
+	std::vector<BulletCreationPacket> Client::GetBulletsToCreate()
+	{
+		return mBulletsToCreate;
+	}
+
+	std::vector<ScorePacket> Client::GetScorePacketsToHandle()
+	{
+		return mScorePacketsToHandle;
 	}
 
 }
