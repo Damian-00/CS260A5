@@ -8,7 +8,7 @@
 #include "networking/utils.hpp"
 
 
-void Parse(int argc, char** argv, bool* is_client, bool* is_server, std::string* address, uint16_t* port, bool* verbose) {
+void Parse(int argc, char** argv, bool* is_client, bool* is_server, std::string* address, uint16_t* port, bool* verbose, bool* is_solo) {
 
 	for (int i = 0; i < argc; i++) {// for each argument we find, parse it
 
@@ -31,6 +31,10 @@ void Parse(int argc, char** argv, bool* is_client, bool* is_server, std::string*
 		if (strcmp("--verbose", argv[i]) == 0) {
 			*verbose = true;
 		}
+		
+		if (strcmp("--solo", argv[i]) == 0) {
+			*is_solo = true;
+		}
 
 	}
 
@@ -39,14 +43,15 @@ int main(int argc, char** argv)
 {
 	bool is_client = false;
 	bool is_server = false;
+	bool is_solo = false;
 	std::string address;
 	uint16_t port = 0;
 
 	bool verbose = false;
 
-	Parse(argc, argv, &is_client, &is_server, &address, &port, &verbose);
+	Parse(argc, argv, &is_client, &is_server, &address, &port, &verbose, &is_solo);
 
-	game::instance().create(is_server, address, port, verbose);
+	game::instance().create(is_server, address, port, verbose, is_solo);
 
 	bool exit = false;
 	do

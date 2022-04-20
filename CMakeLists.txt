@@ -26,7 +26,7 @@ set(SRC
 )
 
 # Executable
-add_executable(asteroids ${SRC})
+add_executable(asteroids ${SRC} "src/game/state_ingamesolo.cpp")
 target_include_directories(asteroids PRIVATE ./src)
 
 ############################
