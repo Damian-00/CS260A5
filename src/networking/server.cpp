@@ -249,7 +249,7 @@ namespace CS260
 				sockaddr senderAddress;
 				unsigned size = 0;
 
-				mProtocol.RecievePacket(&packet, &size, &type, &senderAddres);
+				mProtocol.ReceivePacket(&packet, &size, &type, &senderAddres);
 				HandleReceivedPacket(packet, type, senderAddres);
 			}
 		}

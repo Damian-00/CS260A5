@@ -1,8 +1,19 @@
-#include "client.hpp"
+/*!
+******************************************************************************
+	\file    client.cpp
+	\author  David Miranda
+	\par     DP email: m.david@digipen.edu
+	\par     Course: CS260
+	\date    04/20/2022
+
+	\brief
+	Implementation for all the functionalities required by the client.
+*******************************************************************************/
 #include "client.hpp"
 
-#include <sstream>
 #include "utils.hpp"
+
+#include <sstream>
 
 namespace CS260
 {	/*	\fn Client

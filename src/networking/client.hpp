@@ -1,10 +1,10 @@
 /*!
 ******************************************************************************
-	\file    dftp_client.hpp
+	\file    client.cpp
 	\author  David Miranda
 	\par     DP email: m.david@digipen.edu
 	\par     Course: CS260
-	\date    03/17/2022
+	\date    04/20/2022
 
 	\brief
 	Implementation for all the functionalities required by the client.
@@ -13,9 +13,9 @@
 
 #include "protocol.hpp"
 
+#include <glm/glm.hpp>
 #include <string>
 #include <vector>
-#include <glm/glm.hpp>
 #include <map>
 
 namespace CS260
