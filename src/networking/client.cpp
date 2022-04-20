@@ -179,8 +179,7 @@ namespace CS260
 		{
 			if (SendSYN())
 			{
-				while(!mConnected)
-					ReceiveMessages();
+				ReceiveMessages();
 			}
 			else
 			{
@@ -212,24 +211,26 @@ namespace CS260
 		WSAPOLLFD poll;
 		poll.fd = mSocket;
 		poll.events = POLLIN;
-
-		// TODO: Handle timeout 
-		while(WSAPoll(&poll, 1, timeout) > 0)
+		auto clock = now();
+		do
 		{
-			if (poll.revents & POLLERR)
+			// TODO: Handle timeout 
+			while (WSAPoll(&poll, 1, timeout) > 0)
 			{
-				PrintError("Polling receiving players information");
+				if (poll.revents & POLLERR)
+				{
+					PrintError("Polling receiving players information");
+				}
+				else
+				{
+					ProtocolPacket packet;
+					unsigned size = sizeof(ProtocolPacket);
+					Packet_Types type;
+					if (mProtocol.RecievePacket(&packet, &size, &type))
+						HandleReceivedMessage(packet, type);
+				}
 			}
-			else
-			{
-				ProtocolPacket packet;
-				unsigned size = sizeof(ProtocolPacket);
-				Packet_Types type;
-				if(mProtocol.RecievePacket(&packet, &size, &type))
-					HandleReceivedMessage(packet, type);				
-			}
-		}
-
+		} while (ms_since(clock) < 10000 && !mConnected);
 	}
 
 	void Client::HandleTimeOut()
