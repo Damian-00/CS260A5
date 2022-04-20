@@ -384,6 +384,14 @@ namespace CS260
 			}
 		}
 		break;
+
+		case Packet_Types::ScoreUpdate:
+
+			ScorePacket mCastedPack;
+			memcpy(&mCastedPack, &packet, sizeof(mCastedPack));
+			mScorePacketsToHandle.push_back(mCastedPack);
+
+			break;
 		}
 	}
 

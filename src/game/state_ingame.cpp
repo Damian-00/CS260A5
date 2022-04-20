@@ -362,7 +362,7 @@ void GameStatePlayUpdate(void)
                 vel = vel * BULLET_SPEED;
 
                 if (!is_server)
-                    client->RequestBullet(spShip->id, vel, spShip->posCurr, spShip->dirCurr);
+                    client->RequestBullet(client->GetPlayerID(), vel, spShip->posCurr, spShip->dirCurr);
             }
             // if 'z' pressed
             if (game::instance().input_key_triggered(GLFW_KEY_Z) && (sSpecialCtr >= BOMB_COST)) {
@@ -667,7 +667,20 @@ void GameStatePlayUpdate(void)
 						packet.mSrcSize = pDst->scale;
 
                         // TODO: Move this to client logic
-                        sScore++;
+                        for (auto& ship : mRemoteShips) {
+
+                            if (ship.mPlayerID == pSrc->mOwnerID) {
+                                ship.mScore++;
+
+
+                                
+                                CS260::ScorePacket mPack;
+                                mPack.CurrentScore = ship.mScore;
+                                mPack.mPlayerID = ship.mPlayerID;
+
+                                server->sendScorePacket(mPack);
+                            }
+                        }
 
                         if ((sScore % AST_SPECIAL_RATIO) == 0)
                             sSpecialCtr++;
@@ -974,6 +987,10 @@ void GameStatePlayUpdate(void)
 
             }
             server->mBulletsToCreate.clear();
+
+
+
+            
         }		
         else
         {
@@ -981,6 +998,23 @@ void GameStatePlayUpdate(void)
                 spShip->modColor = client->GetColor();
 
             client->Tick();
+
+            for (auto scpck : client->mScorePacketsToHandle) {
+
+                unsigned id = scpck.mPlayerID;
+                if (id == client->GetPlayerID()) {
+                    sScore = scpck.CurrentScore;
+                }
+                else {
+                    for (auto& rmtShip : mRemoteShips) {
+                        if (rmtShip.mPlayerID == scpck.mPlayerID) {
+                            rmtShip.mScore = scpck.CurrentScore;
+                        }
+                    }
+
+                }
+
+            }
 
             // First of all check if we need to disconnect any player
             for (auto& playerID : client->GetDisconnectedPlayersIDs())

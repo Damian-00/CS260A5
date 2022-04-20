@@ -237,6 +237,9 @@ namespace CS260
 			packetSize = sizeof(BulletDestroyPacket);
 			needsACK = true;
 			break;
+		case Packet_Types::ScoreUpdate:
+			packetSize = sizeof(ScorePacket);
+			needsACK = true;
 		}
 		
 		if(needsACKPtr)

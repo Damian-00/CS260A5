@@ -38,7 +38,8 @@ namespace CS260 {
 		PlayerDie,
 		BulletCreation,	
 		BulletRequest,
-		BulletDestruction
+		BulletDestruction,
+		ScoreUpdate
 	};
 
 	
@@ -167,7 +168,12 @@ namespace CS260 {
 	{
 		unsigned short mObjectId;
 	};
-	
+
+	struct ScorePacket
+	{
+		unsigned mPlayerID;
+		unsigned CurrentScore;
+	};
 	
 	class Protocol {
 	
