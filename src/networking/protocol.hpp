@@ -7,8 +7,10 @@
 #include <vector>
 #include <queue>
 #include <array>
+#include <list>
 
 #include <tuple>
+
 
 
 namespace CS260 {
@@ -194,5 +196,7 @@ namespace CS260 {
 		const unsigned mResendTime = 300;
 
 		const unsigned tickRate = 16;
+
+		std::list<unsigned> mLast100AckMessages{};
 	};
 }

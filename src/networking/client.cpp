@@ -1,7 +1,7 @@
 #include "client.hpp"
 #include "client.hpp"
 
-
+#include <sstream>
 #include "utils.hpp"
 
 namespace CS260
