@@ -311,14 +311,6 @@ namespace CS260
 
 			glm::vec4 color(((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), 1.0f); 
 
-			//avoid colors being too dark
-			for (int i = 0; i < 3; i++) 
-			{
-				if (color[i] < 0.5) 
-				{
-					color[i] = 0.5;
-				}
-			}
 
 			SYNACKpacket.color = color;
 
