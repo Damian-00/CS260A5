@@ -89,6 +89,7 @@ enum
 #define FLAG_LIFE_CTR_S 8
 #define FLAG_LIFE_CTR_M 0x000000FF
 
+
 // ---------------------------------------------------------------------------
 // Struct/Class definitions
 

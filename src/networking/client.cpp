@@ -42,6 +42,7 @@ namespace CS260
 
 		sockaddr_in remoteEndpoint;
 
+		//set the endpoint
 		remoteEndpoint.sin_family = AF_INET;
 		remoteEndpoint.sin_addr = CS260::ToIpv4(ip_address);
 		remoteEndpoint.sin_port = htons(port);
@@ -60,6 +61,7 @@ namespace CS260
 
 		SetSocketBlocking(mSocket, false);
 
+		//set the protocol socket
 		mProtocol.SetSocket(mSocket);
 		if (ConnectToServer())
 		{
@@ -74,7 +76,8 @@ namespace CS260
 	*/
 	Client::~Client()
 	{
-		DisconnectFromServer();
+		
+		//DisconnectFromServer();
 		closesocket(mSocket);
 	
 	}
@@ -83,7 +86,7 @@ namespace CS260
 	{
 		mKeepAliveTimer += tickRate;
 		
-		//// TODO: Reset the counter properly
+		// clear the vectors that refer to the previous tick
 		mNewPlayersOnFrame.clear();
 		mDisconnectedPlayersIDs.clear();
 		mAsteroidsCreated.clear();
@@ -94,62 +97,14 @@ namespace CS260
 		mScorePacketsToHandle.clear();
 		mBulletsToCreate.clear();
 
+		
 		ReceiveMessages();
 
+		//resend unacknowledged messages
 		mProtocol.Tick();
 		
 		HandleTimeOut();
-		////mPlayersState.clear();
-
-		//PlayerInfo packet;
-		//WSAPOLLFD poll;
-		//poll.fd = mSocket;
-		//poll.events = POLLIN;
-
-		//while (WSAPoll(&poll, 1, timeout) > 0)
-		//{
-		//	if (poll.revents & POLLERR)
-		//	{
-		//		PrintError("Error polling message");
-		//	}
-		//	else if (poll.revents & (POLLIN | POLLHUP))
-		//	{
-		//		int bytesReceived = ::recv(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0);
-
-		//		if (bytesReceived == SOCKET_ERROR)
-		//		{
-		//			PrintError("Error receiving message");
-		//		}
-		//		else
-		//		{
-		//			// This should be handled playerpacket
-		//			//if (packet.mCode & NEWPLAYER)
-		//			//{
-		//			//	NewPlayerPacket newPacket;
-		//			//	newPacket.mCode = packet.mCode;
-		//			//	newPacket.mID = packet.mID;
-		//			//	mNewPlayersOnFrame.push_back(newPacket);
-		//			//
-		//			//	PlayerInfo newPlayerPacket;
-		//			//	newPlayerPacket.mID = packet.mID;
-		//			//	mPlayersState.push_back(newPlayerPacket);
-		//			//}
-		//			//// This should be handled playerpacket
-		//			//if (packet.mCode & PLAYERINFO)
-		//			//{
-		//			//	for (auto& state : mPlayersState)
-		//			//	{
-		//			//		if (state.mID = packet.mID)
-		//			//		{
-		//			//			state.pos[0] = packet.pos[0];
-		//			//			state.pos[1] = packet.pos[1];
-		//			//			state.rot = packet.rot;
-		//			//		}
-		//			//	}
-		//			//}
-		//		}
-		//	}
-		//}
+		
 	}
 
 	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation, bool input)
@@ -162,6 +117,7 @@ namespace CS260
 		
 		PrintMessage(str.str());
 		{
+			//send the packet with my ship info
 			ShipUpdatePacket myShipPacket;
 			myShipPacket.mPlayerInfo.mID = mID;
 			myShipPacket.mPlayerInfo.pos = pos;
@@ -408,129 +364,6 @@ namespace CS260
 		}
 	}
 
-	/*	\fn SendRST
-	\brief	Sends a reset request
-	*/
-	void Client::SendRST()
-	{
-		//packet.AttachACK(0);
-		//packet.SetCode(RSTCODE);
-		//int bytesSent = ::send(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacket), 0);
-		//if (bytesSent == SOCKET_ERROR)
-		//{
-		//	PrintMessage("[CLIENT] Error sending RST " + std::to_string(WSAGetLastError()));
-		//}
-		//else
-		//	PrintMessage("[CLIENT] Sending RST correctly");
-	}
-	/*	\fn DisconnectFromServer
-	\brief	Handles disconnection
-	*/
-	void Client::DisconnectFromServer()
-	{
-	//	packet.SetSequence(0);
-	//	packet.AttachACK(0);
-	//	auto clock = now();
-
-	//	// Send ACK to FIN 1
-	//	PrintMessage("Sending ACK FIN 1");
-
-	//	// We only need to send the header
-	//	int bytesSent = ::send(mSocket, reinterpret_cast<char*>(&packet), sizeof(ConnectionPacket), 0);
-
-	//	if (bytesSent == SOCKET_ERROR)
-	//	{
-	//		PrintMessage("Error sending ACK FIN 1" + std::to_string(WSAGetLastError()));
-	//		return;
-	//	}
-	//	else
-	//	{
-	//		packet.AttachACK(0);
-	//		packet.SetCode(FIN2CODE);
-	//		unsigned expectedACK = packet.GetExpectedACK();
-
-	//		PrintMessage("Sending FIN 2");
-	//		bytesSent = ::send(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0);
-
-	//		if (bytesSent == SOCKET_ERROR)
-	//		{
-	//			PrintMessage("Error sending FIN 2" + std::to_string(WSAGetLastError()));
-	//			return;
-	//		}
-	//		else
-	//		{
-	//			bool acknowledged = false;
-	//			do
-	//			{
-	//				WSAPOLLFD poll;
-	//				poll.fd = mSocket;
-	//				poll.events = POLLIN;
-
-	//				if (WSAPoll(&poll, 1, timeout) > 0)
-	//				{
-	//					// Receive all messages
-	//					if (poll.revents & POLLERR)
-	//					{
-	//						PrintMessage("Error polling FIN1 or LASTACK message");
-	//						return;
-	//					}
-	//					// We received a message
-	//					else if (poll.revents & (POLLIN | POLLHUP))
-	//					{
-	//						int bytesReceived = ::recv(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0);
-	//						if (bytesReceived == SOCKET_ERROR)
-	//						{
-	//							PrintError("Error receiving FIN1 or LASTACK message");
-	//							return;
-	//						}
-	//						else
-	//						{
-	//							// Need to resend ACK to FIN 1
-	//							if (packet.GetCode() == FIN1CODE)
-	//							{
-	//								packet.AttachACK(0);
-
-	//								// Send ACK to FIN 1
-	//								PrintMessage("Resending ACK to FIN 1");
-	//								bytesSent = ::send(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0);
-	//								if (bytesSent == SOCKET_ERROR)
-	//								{
-	//									PrintError("Error resending ACK to FIN 1");
-	//									return;
-	//								}
-
-	//								packet.AttachACK(0);
-	//								packet.SetCode(FIN2CODE);
-	//								expectedACK = packet.GetExpectedACK();
-
-	//								PrintMessage("Resending FIN 2");
-	//								bytesSent = ::send(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0);
-	//								if (bytesSent == SOCKET_ERROR)
-	//								{
-	//									PrintError("Error resending FIN 2");
-	//									return;
-	//								}
-
-	//							}
-	//							// Received last ACK
-	//							else if (packet.GetCode() & LASTACKCODE && expectedACK == packet.GetACK())
-	//							{
-	//								PrintMessage("Received last ACK");
-	//								acknowledged = true;
-	//							}
-	//						}
-	//					}
-	//				}
-	//				// Timeout of 30 seconds
-	//				// if we timeout, we disconnect directly since we could not receive FIN2
-	//				// This time the timeout is much bigger since each FIN1 send attempt
-	//				// will have 5 attempts and each one will take as much 5 seconds
-	//				// which makes a total of minimum 25 seconds
-	//				// We give a little more to avoid issues
-	//			} while (!acknowledged && ms_since(clock) < 30000);
-	//		}
-	//	}
-	}
 
 	void Client::PrintMessage(const std::string& msg)
 	{
