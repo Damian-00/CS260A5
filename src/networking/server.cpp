@@ -1,3 +1,4 @@
+#include "server.hpp"
 /*!
 ******************************************************************************
 	\file    server.cpp
@@ -165,6 +166,17 @@ namespace CS260
 				return;
 			}
 		}
+	}
+
+	void Server::SendAsteroidsForcedUpdate(unsigned id, glm::vec2 pos, glm::vec2 vel)
+	{
+		AsteroidUpdatePacket packet;
+		packet.mID = id;
+		packet.mPosition = pos;
+		packet.mVelocity = vel;
+
+		for (auto& client : mClients)
+			mProtocol.SendPacket(Packet_Types::AsteroidUpdate, &packet, &client.mEndpoint);
 	}
 
 	void Server::SendAsteroidsUpdate()

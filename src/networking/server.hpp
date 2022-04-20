@@ -113,6 +113,11 @@ namespace CS260
 		*/
 		void UpdateAsteroid(unsigned short id, glm::vec2 position, glm::vec2 velocity);
 
+		/*	\fn SendAsteroidsForcedUpdate
+		\brief	Force to update one asteroid instance
+		*/
+		void SendAsteroidsForcedUpdate(unsigned id, glm::vec2 pos, glm::vec2 vel);
+		
 		/*	\fn SendAsteroidsUpdate
 		\brief	Send asteroid update packet to all clients, this function is called every 5000ms and by the game instance
 		*/

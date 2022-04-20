@@ -199,8 +199,6 @@ static void         gameObjInstDestroy(GameObjInst* pInst);
 static GameObjInst* astCreateClient(const CS260::AsteroidCreationPacket& asteroidInfo);
 static GameObjInst* astCreateServer(GameObjInst* pSrc);
 
-static GameObjInst* bulletCreate(vec2 pos, vec2 vel, float dir, unsigned ownerID, unsigned ID);
-
 // function to calculate the object's velocity after collison
 static void resolveCollision(GameObjInst* pSrc, GameObjInst* pDst, vec2* pNrm);
 
@@ -235,6 +233,7 @@ void GameStatePlayLoad(void)
 
 void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port, bool verbose)
 {
+    // Create a server or client instance depending on the mode
     if (serverIs)
         server = new CS260::Server(verbose, address, port);
     else
@@ -244,6 +243,7 @@ void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port,
     sAstCtr = 0;
     sAstNum = AST_NUM_MIN;
 
+	// If we are a client, create the ship
     if (!serverIs)
     {
         // create the main ship
@@ -254,7 +254,7 @@ void GameStatePlayInit(bool serverIs, const std::string& address, uint16_t port,
     // get the time the asteroid is created
     sAstCreationTime = game::instance().game_time();
 
-    // generate the initial asteroid
+    // generate the initial asteroid if we are a server
     if (is_server)
     {
         for (uint32_t i = 0; i < sAstNum; i++)
@@ -288,6 +288,7 @@ void GameStatePlayUpdate(void)
             // TODO: Change to RESULT GAME STATE
         }
     } else {
+        // Update the ship only if we have lives to spend
         if (sShipCtr > 0)
         {
             if (game::instance().input_key_pressed(GLFW_KEY_UP)) {
@@ -364,37 +365,6 @@ void GameStatePlayUpdate(void)
                 if (!is_server)
                     client->RequestBullet(client->GetPlayerID(), vel, spShip->posCurr, spShip->dirCurr);
             }
-            // if 'z' pressed
-            if (game::instance().input_key_triggered(GLFW_KEY_Z) && (sSpecialCtr >= BOMB_COST)) {
-                uint32_t i;
-
-                // make sure there is no bomb is active currently
-                for (i = 0; i < GAME_OBJ_INST_NUM_MAX; i++)
-                    if ((sGameObjInstList[i].flag & FLAG_ACTIVE) &&
-                        (sGameObjInstList[i].pObject->type == TYPE_BOMB))
-                        break;
-
-                // if no bomb is active currently, create one
-                if (i == GAME_OBJ_INST_NUM_MAX) {
-                    sSpecialCtr -= BOMB_COST;
-                    gameObjInstCreate(TYPE_BOMB, BOMB_SIZE, &spShip->posCurr, 0, 0, true, 0);
-                }
-            }
-            // if 'x' pressed
-            if (game::instance().input_key_pressed(GLFW_KEY_X) && (sSpecialCtr >= MISSILE_COST)) {
-
-                sSpecialCtr -= MISSILE_COST;
-
-                float dir = spShip->dirCurr;
-                vec2  vel = spShip->velCurr;
-                vec2  pos;
-
-                pos = { glm::cos(spShip->dirCurr), glm::sin(spShip->dirCurr) };
-                pos = pos * spShip->scale * 0.5f;
-                pos = pos + spShip->posCurr;
-
-                gameObjInstCreate(TYPE_MISSILE, 1.0f, &pos, &vel, dir, true, 0);
-            }
         }
     }
 
@@ -417,7 +387,6 @@ void GameStatePlayUpdate(void)
     // update physics
     // ===============
 
-    // TODO: Move to the server update
 
     for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) {
         GameObjInst* pInst = sGameObjInstList + i;
@@ -473,6 +442,7 @@ void GameStatePlayUpdate(void)
             if (currentShips.size() > 0)
             {
                 GameObjInst* nearestShip = nullptr;
+				
                 // This does not compile so use the old approach
                 //float minDistance = std::numeric_limits<float>::max();
                 float minDistance = FLT_MAX;
@@ -512,104 +482,6 @@ void GameStatePlayUpdate(void)
                 !in_range(pInst->posCurr.y, gAEWinMinY - AST_SIZE_MAX, gAEWinMaxY + AST_SIZE_MAX))
                 gameObjInstDestroy(pInst);
         }
-        // check if the object is a bomb
-        else if (pInst->pObject->type == TYPE_BOMB) {
-            // adjust the life counter
-            pInst->life -= dt / BOMB_LIFE;
-
-            if (pInst->life < 0.0f) {
-                gameObjInstDestroy(pInst);
-            } else {
-                float radius = 1.0f - pInst->life;
-                vec2  u;
-
-                pInst->dirCurr += 2.0f * PI * dt;
-
-                radius = 1.0f - radius;
-                radius *= radius;
-                radius *= radius;
-                radius *= radius;
-                radius *= radius;
-                radius = (1.0f - radius) * BOMB_RADIUS;
-
-                // generate the particle ring
-                for (uint32_t j = 0; j < 10; j++) {
-                    // float dir = frand() * 2.0f * PI;
-                    float dir = (j / 9.0f) * 2.0f * PI + pInst->life * 1.5f * 2.0f * PI;
-
-                    u.x = glm::cos(dir) * radius + pInst->posCurr.x;
-                    u.y = glm::sin(dir) * radius + pInst->posCurr.y;
-
-                    // sparkCreate(PTCL_EXHAUST, &u, 1, dir + 0.8f * PI, dir + 0.9f * PI);
-                    sparkCreate(PTCL_EXHAUST, &u, 1, dir + 0.40f * PI, dir + 0.60f * PI);
-                }
-            }
-        }
-        // check if the object is a missile
-        else if (pInst->pObject->type == TYPE_MISSILE) {
-            // adjust the life counter
-            pInst->life -= dt / MISSILE_LIFE;
-
-            if (pInst->life < 0.0f) {
-                gameObjInstDestroy(pInst);
-            } else {
-                vec2 dir;
-
-                if (pInst->pUserData == 0) {
-                    pInst->pUserData = missileAcquireTarget(pInst);
-                } else {
-                    GameObjInst* pTarget = (GameObjInst*)(pInst->pUserData);
-
-                    // if the target is no longer valid, reacquire
-                    if (((pTarget->flag & FLAG_ACTIVE) == 0) ||
-                        (pTarget->pObject->type != TYPE_ASTEROID))
-                        pInst->pUserData = missileAcquireTarget(pInst);
-                }
-
-                if (pInst->pUserData) {
-                    GameObjInst* pTarget = (GameObjInst*)(pInst->pUserData);
-                    vec2         u;
-                    float        uLen;
-
-                    // get the vector from the missile to the target and its length
-                    u    = pTarget->posCurr - pInst->posCurr;
-                    uLen = glm::length(u);
-
-                    // if the missile is 'close' to target, do nothing
-                    if (uLen > 0.1f) 
-                    {
-                        // normalize the vector from the missile to the target
-                        u = u * 1.0f / uLen;
-
-                        // calculate the missile direction vector
-                        dir = {glm::cos(pInst->dirCurr), glm::sin(pInst->dirCurr)};
-
-                        // calculate the cos and sin of the angle between the target
-                        // vector and the missile direction vector
-                        float cosAngle = glm::dot(dir, u),
-                              sinAngle = cross_product_mag(dir, u), rotAngle;
-
-                        // calculate how much to rotate the missile
-                        if (cosAngle < glm::cos(MISSILE_TURN_SPEED * dt))
-                            rotAngle = MISSILE_TURN_SPEED * dt;
-                        else
-                            rotAngle = glm::cos(glm::clamp(cosAngle, -1.0f, 1.0f));
-
-                        // rotate to the left if sine of the angle is positive and vice
-                        // versa
-                        pInst->dirCurr += (sinAngle > 0.0f) ? rotAngle : -rotAngle;
-                    }
-                }
-
-                // adjust the missile velocity
-                dir            = {glm::cos(pInst->dirCurr), glm::sin(pInst->dirCurr)};
-                dir            = dir * MISSILE_ACCEL * dt;
-                pInst->velCurr = pInst->velCurr + dir;
-                pInst->velCurr = pInst->velCurr * glm::pow(MISSILE_DAMP, dt);
-
-                sparkCreate(PTCL_EXHAUST, &pInst->posCurr, 1, pInst->dirCurr + 0.8f * PI, pInst->dirCurr + 1.2f * PI);
-            }
-        }
         // check if the object is a particle
         else if ((TYPE_PTCL_WHITE <= pInst->pObject->type) &&
                  (pInst->pObject->type <= TYPE_PTCL_RED)) {
@@ -626,6 +498,7 @@ void GameStatePlayUpdate(void)
     // check for collision
     // ====================
 #if 1
+    // Update the collisions only if we are the server
     if (is_server)
     {
         for (uint32_t i = 0; i < GAME_OBJ_INST_NUM_MAX; i++) 
@@ -666,36 +539,35 @@ void GameStatePlayUpdate(void)
 						packet.mAngleMax = pSrc->dirCurr + 0.05f * PI;
 						packet.mSrcSize = pDst->scale;
 
-                        // TODO: Move this to client logic
-                        for (auto& ship : mRemoteShips) {
-
-                            if (ship.mPlayerID == pSrc->mOwnerID) {
+                        for (auto& ship : mRemoteShips) 
+                        {
+                            if (ship.mPlayerID == pSrc->mOwnerID) 
+                            {
+                                // Increase the current ship score
                                 ship.mScore++;
-
-
                                 
                                 CS260::ScorePacket mPack;
                                 mPack.CurrentScore = ship.mScore;
                                 mPack.mPlayerID = ship.mPlayerID;
 
+                                // Update the player's score in all the clients
                                 server->sendScorePacket(mPack);
                             }
                         }
 
-                        if ((sScore % AST_SPECIAL_RATIO) == 0)
-                            sSpecialCtr++;
-                        if ((sScore % AST_SHIP_RATIO) == 0)
-                            sShipCtr++;
+						// Increment the asteroid number depending on the total score
                         if (sScore == sAstNum * 5)
                             sAstNum = (sAstNum < AST_NUM_MAX) ? (sAstNum * 2) : sAstNum;
 
                         server->SendAsteroidDestroyPacket(pDst->id);
+						
                         // destroy the asteroid
                         gameObjInstDestroy(pDst);
                     }
                     else 
                     {
                         sparkCreate(PTCL_EXPLOSION_S, &pSrc->posCurr, 10, pSrc->dirCurr + 0.9f * PI, pSrc->dirCurr + 1.1f * PI);
+						
                         packet.mType = CS260::BulletDestroyPacket::ExplosionType::Small;
                         packet.mPosition = pSrc->posCurr;
                         packet.mCount = 10;
@@ -706,6 +578,7 @@ void GameStatePlayUpdate(void)
                         pSrc->velCurr = pSrc->velCurr * 0.01f * (1.0f - pDst->scale / AST_SIZE_MAX);
                         pDst->velCurr = pDst->velCurr + pSrc->velCurr;
 
+
                         // split the asteroid to 4
                         if ((pSrc->pObject->type == TYPE_MISSILE) ||
                             ((pDst->life -= 1.0f) < 0.0f))
@@ -714,63 +587,23 @@ void GameStatePlayUpdate(void)
                             server->SendAsteroidDestroyPacket(pDst->id);
                             gameObjInstDestroy(pDst);
                         }
+                        // If we do not need to destroy the asteroid force its update
+                        else
+                        {
+                            // Update the server asteroid copy
+                            server->UpdateAsteroid(pDst->id, pDst->posCurr, pDst->velCurr);
+                            server->SendAsteroidsForcedUpdate(pDst->id, pDst->posCurr, pDst->velCurr);
+                        }
                     }
 
+					// Send the packet to destroy the bullet to the clients
+                    // It will include the information for the particle effects
                     server->SendBulletDestroyPacket(packet);
+
                     // destroy the bullet
                     gameObjInstDestroy(pSrc);
 
                     break;
-                }
-
-                // Bomb vs Asteroids
-            }
-            else if (TYPE_BOMB == pSrc->pObject->type) 
-            {
-                float radius = 1.0f - pSrc->life;
-
-                pSrc->dirCurr += 2.0f * PI * dt;
-
-                radius = 1.0f - radius;
-                radius *= radius;
-                radius *= radius;
-                radius *= radius;
-                radius *= radius;
-                radius *= radius;
-                radius = (1.0f - radius) * BOMB_RADIUS;
-
-                // check collision
-                for (uint32_t j = 0; j < GAME_OBJ_INST_NUM_MAX; j++) {
-                    GameObjInst* pDst = sGameObjInstList + j;
-
-                    if (((pDst->flag & FLAG_ACTIVE) == 0) ||
-                        (pDst->pObject->type != TYPE_ASTEROID))
-                        continue;
-
-                    // if (AECalcDistPointToRect(&pSrc->posCurr, &pDst->posCurr,
-                    // pDst->scale, pDst->scale) > radius)
-                    if (point_in_sphere(pSrc->posCurr, pDst->posCurr, radius) == false)
-                        continue;
-
-                    if (pDst->scale < AST_SIZE_MIN) {
-                        float dir = atan2f(pDst->posCurr.y - pSrc->posCurr.y,
-                            pDst->posCurr.x - pSrc->posCurr.x);
-
-                        gameObjInstDestroy(pDst);
-                        sparkCreate(PTCL_EXPLOSION_M, &pDst->posCurr, 20, dir + 0.4f * PI, dir + 0.45f * PI);
-                        sScore++;
-
-                        if ((sScore % AST_SPECIAL_RATIO) == 0)
-                            sSpecialCtr++;
-                        if ((sScore % AST_SHIP_RATIO) == 0)
-                            sShipCtr++;
-                        if (sScore == sAstNum * 5)
-                            sAstNum = (sAstNum < AST_NUM_MAX) ? (sAstNum * 2) : sAstNum;
-                    }
-                    //else {
-                    //    // split the asteroid to 4
-                    //    astCreate(pDst);
-                    //}
                 }
             }
             // Asteroid vs Asteroid
@@ -820,16 +653,12 @@ void GameStatePlayUpdate(void)
                     if (aabb_vs_aabb(pSrc->posCurr, pSrc->scale, pSrc->scale, pDst->posCurr, pDst->scale, pDst->scale) == false)
                         continue;
 
-					// TODO: Send explosion particle effect to clients
-
 					// Update the corresponding client's position and the lifes remaining
                     // reset the its ship position and direction
                     for (auto& ship : mRemoteShips)
                     {
                         if (ship.mShipInstance == pSrc)
                         {
-                            std::cout << "SENDING PLAYER DIE PACKET ID: " << ship.mPlayerID << std::endl;
-							
                             if (ship.mShipsLeft > 0 && !ship.mDead)
                             {
                                 // create the big explosion
@@ -871,7 +700,6 @@ void GameStatePlayUpdate(void)
                             }
                         }
                     }
-                    std::cout << "DIE PACKETS SENT"<< std::endl;
                     break;
                 }
             }
@@ -997,6 +825,7 @@ void GameStatePlayUpdate(void)
             }
 
         }		
+        // Client ticks
         else
         {
             if (spShip)
@@ -1030,8 +859,12 @@ void GameStatePlayUpdate(void)
             for (auto scpck : client->GetScorePacketsToHandle()) 
             {
                 unsigned id = scpck.mPlayerID;
-                if (id == client->GetPlayerID()) 
+                if (id == client->GetPlayerID())
+                {
                     sScore = scpck.CurrentScore;
+                    if ((sScore % AST_SHIP_RATIO) == 0)
+                        sShipCtr++;
+                }
                 else 
                 {
                     for (auto& rmtShip : mRemoteShips) 
@@ -1566,11 +1399,13 @@ GameObjInst* astCreateServer(GameObjInst* pSrc)
         float velOffset = (AST_SIZE_MAX - pSrc->scale + 1.0f) * 0.25f;
         float scaleNew = pSrc->scale * 0.5f;
 
+        // Create the particles effect
         sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 5, 0.0f * PI - 0.01f * PI, 0.0f * PI + 0.01f * PI, 0.0f, pSrc->scale / AST_SIZE_MAX, &pSrc->velCurr);
         sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 5, 0.5f * PI - 0.01f * PI, 0.5f * PI + 0.01f * PI, 0.0f, pSrc->scale / AST_SIZE_MAX, &pSrc->velCurr);
         sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 5, 1.0f * PI - 0.01f * PI, 1.0f * PI + 0.01f * PI, 0.0f, pSrc->scale / AST_SIZE_MAX, &pSrc->velCurr);
         sparkCreate(PTCL_EXPLOSION_L, &pSrc->posCurr, 5, 1.5f * PI - 0.01f * PI, 1.5f * PI + 0.01f * PI, 0.0f, pSrc->scale / AST_SIZE_MAX, &pSrc->velCurr);
 
+        // Create the new asteroids and send the information related to them to the clients
         pInst = gameObjInstCreate(TYPE_ASTEROID, size, &pos, &vel, 0.0f, true, sLastGeneratedID++);
         pInst->scale = scaleNew;
         pInst->posCurr = { pSrc->posCurr.x - posOffset, pSrc->posCurr.y - posOffset };
