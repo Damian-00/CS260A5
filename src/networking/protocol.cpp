@@ -21,18 +21,21 @@ namespace CS260
 	}
 	void Protocol::Tick()
 	{
+		//for each message sent that hasnt been ack
 		for (auto & message : mUnacknowledgedMessages) {
+			//increase how much time has passed since we sent it
 			std::get<1>(message) += tickRate;
+			//if more time than the resend time has passed
 			if (std::get<1>(message) > mResendTime) {
 				//need to resend the message
 
 				if (std::get<2>(message)) { // there is a sockaddr pointer
 
-					sendto(mSocket, std::get<0>(message).data(), std::get<0>(message).size(), 0, std::get<2>(message), sizeof(sockaddr));
+					sendto(mSocket, std::get<0>(message).data(), (int)std::get<0>(message).size(), 0, std::get<2>(message), (int)sizeof(sockaddr));
 				}
-				else {
+				else { //there is not
 
-					send(mSocket, std::get<0>(message).data(), std::get<0>(message).size(), 0);
+					send(mSocket, std::get<0>(message).data(), (int)std::get<0>(message).size(), 0);
 
 				}
 			}
@@ -47,37 +50,47 @@ namespace CS260
 		bool needsAck = false;
 		unsigned mPacketSize = GetTypeSize(_type, &needsAck);
 		
+		//construct the header of the packet
 		PacketHeader mHeader{ mSequenceNumber , 0, needsAck, _type };
 		mSequenceNumber++;
 
+		//store the ehader on the actual buffer
 		memcpy(mBuffer.data(), &mHeader, sizeof(PacketHeader));
+		//store the actual payload in the buffer
 		memcpy(mBuffer.data() + sizeof(PacketHeader), _packet, mPacketSize);
 
+		//check whether we need to send it to an endpoint or to the connected one
 		if (_addr)
 			sendto(mSocket, mBuffer.data(), sizeof(PacketHeader) + mPacketSize, 0, _addr, sizeof(sockaddr));
 		else 
 			send(mSocket, mBuffer.data(), sizeof(PacketHeader) + mPacketSize, 0); 
 
+		//check whether we need to store it in those to resend if not acknowledged
 		if (needsAck)
 			mUnacknowledgedMessages.push_back(std::tuple< std::array<char, 8192>, unsigned,const sockaddr*>(mBuffer, 0, _addr));
 	}
 
-	bool Protocol::RecievePacket(void* _payload, unsigned *_size, Packet_Types* _type, sockaddr * _addr)
+	bool Protocol::ReceivePacket(void* _payload, unsigned *_size, Packet_Types* _type, sockaddr * _addr)
 	{
 
 		std::array<char, 8192> mBuffer{};
+		//boolean to keep track if we already handled this packet
 		bool alreadyReceived = false;
 
 		int received;
 
 		if (_addr){ // we dont  know who we are receiving from
 			int addr_size = sizeof(*_addr);
-			// TODO: Error checking
-			received = recvfrom(mSocket, mBuffer.data(), mBuffer.size(), 0, _addr, &addr_size);
+			
+			received = recvfrom(mSocket, mBuffer.data(), (int)mBuffer.size(), 0, _addr, &addr_size);
+			// Do nothing , this will not update the Keep alive timer so in case of multiple errors diconnection happens
+			if (received == SOCKET_ERROR)
+				return false;
 		}
 		else { // we do know
-			// TODO: Error checking
-			received = recv(mSocket, mBuffer.data(), mBuffer.size(), 0);
+			
+			received = recv(mSocket, mBuffer.data(), (int)mBuffer.size(), 0);
+
 			// If received any error
 			// Do nothing			
 			if (received == SOCKET_ERROR)
@@ -93,6 +106,7 @@ namespace CS260
 			//in case we need to acknowledge the packet
 			if (mHeader.mNeedsAcknowledgement) {
 				for (auto& i : mLast100AckMessages) {
+					//we already received so dont handle it anymore
 					if (i == mHeader.mSeq) {
 						alreadyReceived = true;
 					}
@@ -104,7 +118,7 @@ namespace CS260
 					std::array<char, 8192> ackPack;
 					memcpy(&ackPack, &mAckHeader, sizeof(mAckHeader));
 
-
+					//send the ack packet
 					if (_addr) {
 
 						int sent = sendto(mSocket, ackPack.data(), sizeof(mAckHeader), 0, _addr, sizeof(sockaddr));
@@ -116,8 +130,10 @@ namespace CS260
 						int sent = send(mSocket, ackPack.data(), sizeof(PacketHeader), 0);
 					}
 
+					//add it to the ones we received, so that if we receive it again we discard it 
 					mLast100AckMessages.push_back(mHeader.mSeq);
 
+					//if the size is greater than 100 remove the first one
 					if (mLast100AckMessages.size() > 100) {
 						mLast100AckMessages.pop_front();
 					}
@@ -128,6 +144,7 @@ namespace CS260
 			//in case it was an acknowledgement{
 			if (mHeader.mAck != 0) {
 
+				//erase the message if we just received its ack
 				auto erased = std::erase_if(mUnacknowledgedMessages, [&](std::tuple<std::array<char, 8192>,unsigned, const sockaddr*> a) {
 
 					PacketHeader mThisHeader;
@@ -136,22 +153,26 @@ namespace CS260
 					if (mHeader.mAck == mThisHeader.mSeq) {
 						return true; //we found the element we received the ack from
 					}
-
+					return false;
 					});
 
 			}
 
-
+			
+			//if we need to handle it
 			if (!alreadyReceived){
-			*_type = mHeader.mPackType;
 
-			unsigned mPacketSize = GetTypeSize(mHeader.mPackType);
+				//store in the out parameters
+				*_type = mHeader.mPackType;
 
-			*_size = mPacketSize;
-			memcpy(_payload, mBuffer.data() + sizeof(PacketHeader), mPacketSize);
+				unsigned mPacketSize = GetTypeSize(mHeader.mPackType);
+
+				*_size = mPacketSize;
+				memcpy(_payload, mBuffer.data() + sizeof(PacketHeader), mPacketSize);
 			}
 			else {
 
+				//store empty out paramteres as dummy
 				*_type = Packet_Types::VoidPacket;
 				*_size = 0;
 
@@ -162,8 +183,11 @@ namespace CS260
 
 	unsigned Protocol::GetTypeSize(Packet_Types type, bool* needsACKPtr)
 	{
+		
 		unsigned packetSize = 0;
 		bool needsACK = false;
+
+		//just for each kind of message, store whether it needs acknowledgement and the size of the corresponding packet
 		switch (type) 
 		{
 		case Packet_Types::VoidPacket:
@@ -173,10 +197,6 @@ namespace CS260
 			packetSize = sizeof(ObjectCreationPacket);
 			needsACK = true;
 			break;
-		//case Packet_Types::ObjectDestruction:
-		//	packetSize = sizeof(ObjectDestructionPacket);
-		//	needsACK = true;
-		//	break;
 		case Packet_Types::ObjectUpdate:
 			packetSize = sizeof(ObjectUpdatePacket);
 			needsACK = false;
@@ -242,6 +262,7 @@ namespace CS260
 			needsACK = true;
 		}
 		
+		//store in the out param
 		if(needsACKPtr)
 			*needsACKPtr = needsACK;
 		

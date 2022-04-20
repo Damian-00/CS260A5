@@ -995,6 +995,7 @@ void GameStatePlayUpdate(void)
 
                 server->SendBulletToAllClients(sendPCK);
             }
+
         }		
         else
         {
