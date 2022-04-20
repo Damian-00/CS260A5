@@ -49,7 +49,7 @@ void game::create(bool is_server, const std::string& address, uint16_t port, boo
     m_default_shader = engine::shader_default_create();
 
     m_default_font = new engine::font();
-    m_default_font->create("../../../resources/monospaced_24.fnt");
+    m_default_font->create("resources/monospaced_24.fnt");
 
     // General
     m_start_time_point = clock::now();
