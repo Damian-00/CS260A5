@@ -62,7 +62,7 @@ namespace CS260
 			mUnacknowledgedMessages.push_back(std::tuple< std::array<char, 8192>, unsigned,const sockaddr*>(mBuffer, 0, _addr));
 	}
 
-	void Protocol::RecievePacket(void* _payload, unsigned *_size, Packet_Types* _type, sockaddr * _addr)
+	bool Protocol::RecievePacket(void* _payload, unsigned *_size, Packet_Types* _type, sockaddr * _addr)
 	{
 
 		std::array<char, 8192> mBuffer{};
@@ -77,6 +77,10 @@ namespace CS260
 		else { // we do know
 			// TODO: Error checking
 			received = recv(mSocket, mBuffer.data(), mBuffer.size(), 0);
+			// If received any error
+			// Do nothing			
+			if (received == SOCKET_ERROR)
+				return false;
 		}
 
 		//cast the header message
@@ -130,6 +134,7 @@ namespace CS260
 			*_size = mPacketSize;
 			memcpy(_payload, mBuffer.data() + sizeof(PacketHeader), mPacketSize);
 		}
+		return true;
 	}
 
 	unsigned Protocol::GetTypeSize(Packet_Types type, bool* needsACKPtr)
@@ -203,6 +208,10 @@ namespace CS260
 			break;
 		case Packet_Types::BulletCreation:
 			packetSize = sizeof(BulletCreationPacket);
+			needsACK = true;
+			break;
+		case Packet_Types::BulletDestruction:
+			packetSize = sizeof(BulletDestroyPacket);
 			needsACK = true;
 			break;
 		}

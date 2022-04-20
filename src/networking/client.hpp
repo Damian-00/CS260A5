@@ -35,6 +35,7 @@ namespace CS260
 		std::vector<AsteroidUpdatePacket> mAsteroidsUpdate;
 		std::vector<AsteroidDestructionPacket> mAsteroidsDestroyed;
 		std::vector<PlayerDiePacket> mPlayersDied;
+		std::vector<BulletDestroyPacket> mBulletsToDestroy;
 		glm::vec4 mColor;
 		
 	public:
@@ -74,6 +75,8 @@ namespace CS260
 		const std::vector<AsteroidDestructionPacket>& GetDestroyedAsteroids();
 		
 		const std::vector<PlayerDiePacket>& GetDiedPlayers();
+		
+		const std::vector<BulletDestroyPacket>& GetBulletsDestroyed();
 
 		glm::vec4 GetColor();
 

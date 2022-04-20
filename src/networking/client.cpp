@@ -1,4 +1,5 @@
 #include "client.hpp"
+#include "client.hpp"
 
 
 #include "utils.hpp"
@@ -77,6 +78,7 @@ namespace CS260
 		mAsteroidsCreated.clear();
 		mAsteroidsUpdate.clear();
 		mAsteroidsDestroyed.clear();
+		mBulletsToDestroy.clear();
 		mPlayersDied.clear();
 
 		ReceiveMessages();
@@ -223,8 +225,8 @@ namespace CS260
 				ProtocolPacket packet;
 				unsigned size = sizeof(ProtocolPacket);
 				Packet_Types type;
-				mProtocol.RecievePacket(&packet, &size, &type);
-				HandleReceivedMessage(packet, type);				
+				if(mProtocol.RecievePacket(&packet, &size, &type))
+					HandleReceivedMessage(packet, type);				
 			}
 		}
 
@@ -326,12 +328,20 @@ namespace CS260
 			break;
 		
 		case Packet_Types::BulletCreation:
-
+		{
 			BulletCreationPacket receivedPCK;
 			::memcpy(&receivedPCK, packet.mBuffer.data(), sizeof(receivedPCK));
 
 			mBulletsToCreate.push_back(receivedPCK);
+		}	
+			break;
+		case Packet_Types::BulletDestruction:
+		{
+			BulletDestroyPacket receivedPCK;
+			::memcpy(&receivedPCK, packet.mBuffer.data(), sizeof(receivedPCK));
 
+			mBulletsToDestroy.push_back(receivedPCK);
+		}
 			break;
 		case Packet_Types::AsteroidUpdate:
 		{
@@ -556,6 +566,11 @@ namespace CS260
 	const std::vector<PlayerDiePacket>& Client::GetDiedPlayers()
 	{
 		return mPlayersDied;
+	}
+
+	const std::vector<BulletDestroyPacket>& Client::GetBulletsDestroyed()
+	{
+		return mBulletsToDestroy;
 	}
 
 	glm::vec4 Client::GetColor()

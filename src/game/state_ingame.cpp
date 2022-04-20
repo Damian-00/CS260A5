@@ -652,9 +652,19 @@ void GameStatePlayUpdate(void)
                     if (point_in_aabb(pSrc->posCurr, pDst->posCurr, pDst->scale, pDst->scale) == false)
                         continue;
 
+					CS260::BulletDestroyPacket packet;
+                    packet.mObjectID = pSrc->id;
+
                     if (pDst->scale < AST_SIZE_MIN) 
                     {
                         sparkCreate(PTCL_EXPLOSION_M, &pDst->posCurr, (uint32_t)(pDst->scale * 10), pSrc->dirCurr - 0.05f * PI, pSrc->dirCurr + 0.05f * PI, pDst->scale);
+
+                        packet.mType = CS260::BulletDestroyPacket::ExplosionType::Medium;
+                        packet.mPosition = pDst->posCurr;
+						packet.mCount = (uint32_t)(pDst->scale * 10);
+						packet.mAngleMin = pSrc->dirCurr - 0.05f * PI;
+						packet.mAngleMax = pSrc->dirCurr + 0.05f * PI;
+						packet.mSrcSize = pDst->scale;
 
                         // TODO: Move this to client logic
                         sScore++;
@@ -673,7 +683,12 @@ void GameStatePlayUpdate(void)
                     else 
                     {
                         sparkCreate(PTCL_EXPLOSION_S, &pSrc->posCurr, 10, pSrc->dirCurr + 0.9f * PI, pSrc->dirCurr + 1.1f * PI);
-
+                        packet.mType = CS260::BulletDestroyPacket::ExplosionType::Small;
+                        packet.mPosition = pSrc->posCurr;
+                        packet.mCount = 10;
+                        packet.mAngleMin = pSrc->dirCurr + 0.9f * PI;
+                        packet.mAngleMax = pSrc->dirCurr + 1.1f * PI;
+						
                         // impart some of the bullet/missile velocity to the asteroid
                         pSrc->velCurr = pSrc->velCurr * 0.01f * (1.0f - pDst->scale / AST_SIZE_MAX);
                         pDst->velCurr = pDst->velCurr + pSrc->velCurr;
@@ -688,6 +703,7 @@ void GameStatePlayUpdate(void)
                         }
                     }
 
+                    server->SendBulletDestroyPacket(packet);
                     // destroy the bullet
                     gameObjInstDestroy(pSrc);
 
@@ -943,13 +959,13 @@ void GameStatePlayUpdate(void)
 
             for (auto& obj : server->mBulletsToCreate) {
 
-                auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID++);
+                auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID);
 
                 inst->mOwnerID = obj.mOwnerID; //set the bullet owner
 
                 CS260::BulletCreationPacket sendPCK;
                 sendPCK.mDir = obj.mDir;
-                sendPCK.mObjectID = sLastGeneratedID;
+                sendPCK.mObjectID = sLastGeneratedID++;
                 sendPCK.mOwnerID = obj.mOwnerID;
                 sendPCK.mPos = obj.mPos;
                 sendPCK.mVel = obj.mVel;
@@ -961,11 +977,11 @@ void GameStatePlayUpdate(void)
         }		
         else
         {
-            if(spShip)
+            if (spShip)
                 spShip->modColor = client->GetColor();
 
             client->Tick();
-			
+
             // First of all check if we need to disconnect any player
             for (auto& playerID : client->GetDisconnectedPlayersIDs())
             {
@@ -981,13 +997,13 @@ void GameStatePlayUpdate(void)
             }
 
             // Check if any new player connected
-            for(auto& playerInfo : client->GetNewPlayers())
+            for (auto& playerInfo : client->GetNewPlayers())
             {
                 vec2 pos{ 0, 0 };
                 mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true, 0) });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
-			
+
             // Update the current players
             for (auto& playerInfo : client->GetPlayersInfo())
             {
@@ -1000,13 +1016,13 @@ void GameStatePlayUpdate(void)
                         ship.mShipInstance->velCurr = playerInfo.vel;
                         ship.mShipInstance->inputPressed = playerInfo.inputPressed;
 
-                        if (ship.mShipInstance->inputPressed) 
+                        if (ship.mShipInstance->inputPressed)
                         {
                             vec2 pos, dir;
                             dir = { glm::cos(ship.mShipInstance->dirCurr), glm::sin(ship.mShipInstance->dirCurr) };
                             pos = dir;
                             dir = dir * (SHIP_ACCEL_FORWARD * dt);
-                     
+
                             pos = pos * -ship.mShipInstance->scale;
                             pos = pos + ship.mShipInstance->posCurr;
 
@@ -1022,7 +1038,7 @@ void GameStatePlayUpdate(void)
                 astCreateClient(asteroid);
             }
 
-			// Update the asteroids
+            // Update the asteroids
             for (auto& asteroid : client->GetUpdatedAsteroids())
             {
                 for (auto& obj : sGameObjInstList)
@@ -1035,7 +1051,7 @@ void GameStatePlayUpdate(void)
                 }
             }
 
-			// Destroy asteroids
+            // Destroy asteroids
             for (auto& asteroid : client->GetDestroyedAsteroids())
             {
                 for (auto& obj : sGameObjInstList)
@@ -1047,22 +1063,23 @@ void GameStatePlayUpdate(void)
                     }
                 }
             }
-			// Check for dead players
+
+            // Check for dead players
             for (auto& deadPlayer : client->GetDiedPlayers())
             {
                 std::cout << "Player ID: " << deadPlayer.mPlayerID << std::endl;
                 std::cout << "Client ID: " << client->GetPlayerID() << std::endl;
-				
+
                 if (deadPlayer.mPlayerID == client->GetPlayerID())
                 {
                     if (sShipCtr > 0)
                     {
                         std::cout << "Killing player with ID: " << deadPlayer.mPlayerID << std::endl;
                         sparkCreate(PTCL_EXPLOSION_L, &spShip->posCurr, 100, 0.0f, 2.0f * PI);
-                        
+
                         sShipCtr = deadPlayer.mRemainingLifes;
-						
-						if(sShipCtr)
+
+                        if (sShipCtr)
                             spShip->posCurr = { 0, 0 };
                         spShip->velCurr = { 0, 0 };
                         spShip->dirCurr = 0.0f;
@@ -1078,7 +1095,7 @@ void GameStatePlayUpdate(void)
                 {
                     for (auto& ship : mRemoteShips)
                     {
-                        std::cout << "Player ID: " << deadPlayer.mPlayerID<<std::endl;
+                        std::cout << "Player ID: " << deadPlayer.mPlayerID << std::endl;
                         std::cout << "Remote ID: " << ship.mPlayerID << std::endl;
                         if (deadPlayer.mPlayerID == ship.mPlayerID)
                         {
@@ -1087,7 +1104,7 @@ void GameStatePlayUpdate(void)
                             {
                                 std::cout << "Killing remote player with ID: " << deadPlayer.mPlayerID << std::endl;
                                 ship.mShipsLeft = deadPlayer.mRemainingLifes;
-								
+
                                 //if (ship.mShipsLeft == 0)
                                 //{
                                 //    gameObjInstDestroy(ship.mShipInstance);
@@ -1099,14 +1116,31 @@ void GameStatePlayUpdate(void)
                 }
             }
 
+            // Bullet creation
             for (auto& obj : client->mBulletsToCreate) {
 
                 auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID++);
 
                 inst->mOwnerID = obj.mOwnerID; //set the bullet owner
+                inst->id = obj.mObjectID;
             }
             client->mBulletsToCreate.clear();
-			
+
+            // Bullet Destruction
+            for (auto& bulletInfo : client->GetBulletsDestroyed())
+            {
+                for (auto& obj : sGameObjInstList)
+                {
+                    if (obj.id == bulletInfo.mObjectID && obj.pObject && obj.pObject->type == TYPE_BULLET)
+                    {
+                        glm::vec2 pos = bulletInfo.mPosition;
+                        glm::vec2 vel = bulletInfo.mVelInit;
+                        sparkCreate(bulletInfo.mType, &pos, bulletInfo.mCount, bulletInfo.mAngleMin, bulletInfo.mAngleMax, bulletInfo.mSrcSize, bulletInfo.mVelScale, &vel);
+                        gameObjInstDestroy(&obj);
+                    }
+                }
+            }
+
             //if (client->Connected() && spShip)
             if (client->Connected() && sShipCtr > 0)
                 client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));

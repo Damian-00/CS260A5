@@ -35,7 +35,8 @@ namespace CS260 {
 		AsteroidDestroy,
 		PlayerDie,
 		BulletCreation,	
-		BulletRequest
+		BulletRequest,
+		BulletDestruction
 	};
 
 	
@@ -110,6 +111,26 @@ namespace CS260 {
 		unsigned mObjectID;
 	};
 
+	struct BulletDestroyPacket
+	{
+		// Force this to match PTCL_EXPLOSION_M convention of the game
+		enum ExplosionType
+		{
+			Small = 11,
+			Medium = 12
+		};
+		unsigned mObjectID;
+		
+		// Particle management
+		ExplosionType mType;
+		glm::vec2 mPosition;
+		unsigned mCount;
+		float mAngleMin;
+		float mAngleMax;
+		float mSrcSize = 0.0f;
+		float mVelScale = 1.0f;
+		glm::vec2 mVelInit = {0, 0};
+	};
 	struct ObjectCreationPacket 
 	{
 		unsigned mObjectId;
@@ -157,7 +178,7 @@ namespace CS260 {
 		
 		void SendPacket(Packet_Types, void* packet, const sockaddr* = nullptr);
 
-		void RecievePacket(void* _payload, unsigned* _size, Packet_Types* _type, sockaddr* _addr = nullptr);
+		bool RecievePacket(void* _payload, unsigned* _size, Packet_Types* _type, sockaddr* _addr = nullptr);
 
 		void SetSocket(SOCKET);
 		

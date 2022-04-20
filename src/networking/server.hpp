@@ -80,6 +80,8 @@ namespace CS260
 		std::vector<BulletRequestPacket> mBulletsToCreate;
 
 		void SendBulletToAllClients(BulletCreationPacket mBullet);
+
+		void SendBulletDestroyPacket(BulletDestroyPacket& packet);
 	private:
 
 		void ReceivePackets();

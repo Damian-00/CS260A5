@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include "server.hpp"
 #include "utils.hpp"
 
 namespace CS260
@@ -206,6 +207,12 @@ namespace CS260
 	{
 		for (auto& client : mClients)
 			mProtocol.SendPacket(Packet_Types::BulletCreation, &mBullet, &client.mEndpoint);
+	}
+
+	void Server::SendBulletDestroyPacket(BulletDestroyPacket& packet)
+	{
+		for (auto& client : mClients)
+			mProtocol.SendPacket(Packet_Types::BulletDestruction, &packet, &client.mEndpoint);
 	}
 
 	void Server::ReceivePackets()
