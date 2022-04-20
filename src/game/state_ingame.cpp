@@ -761,6 +761,7 @@ void GameStatePlayUpdate(void)
                     CS260::ScorePacket thisPacket;
                     thisPacket.CurrentScore = ship.mScore;
                     thisPacket.mPlayerID = ship.mPlayerID;
+                    // Update the scores of the current clients in the new client
                     server->sendScorePacket(thisPacket);
                 }
                 glm::vec2 pos = playerInfo.mPlayerInfo.pos;
