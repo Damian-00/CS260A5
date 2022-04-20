@@ -362,7 +362,7 @@ void GameStatePlayUpdate(void)
                 vel = vel * BULLET_SPEED;
 
                 if (!is_server)
-                    client->RequestBullet(spShip->id, vel, spShip->posCurr, spShip->dirCurr);
+                    client->RequestBullet(client->GetPlayerID(), vel, spShip->posCurr, spShip->dirCurr);
             }
             // if 'z' pressed
             if (game::instance().input_key_triggered(GLFW_KEY_Z) && (sSpecialCtr >= BOMB_COST)) {
@@ -667,7 +667,20 @@ void GameStatePlayUpdate(void)
 						packet.mSrcSize = pDst->scale;
 
                         // TODO: Move this to client logic
-                        sScore++;
+                        for (auto& ship : mRemoteShips) {
+
+                            if (ship.mPlayerID == pSrc->mOwnerID) {
+                                ship.mScore++;
+
+
+                                
+                                CS260::ScorePacket mPack;
+                                mPack.CurrentScore = ship.mScore;
+                                mPack.mPlayerID = ship.mPlayerID;
+
+                                server->sendScorePacket(mPack);
+                            }
+                        }
 
                         if ((sScore % AST_SPECIAL_RATIO) == 0)
                             sSpecialCtr++;
@@ -915,6 +928,14 @@ void GameStatePlayUpdate(void)
             // We added a new player
             for (auto& playerInfo : server->GetNewPlayers())
             {
+                for (auto& ship : mRemoteShips) {
+                    
+                    CS260::ScorePacket thisPacket;
+                    thisPacket.CurrentScore = ship.mScore;
+                    thisPacket.mPlayerID = ship.mPlayerID;
+                    server->sendScorePacket(thisPacket);
+                }
+                
 				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, SHIP_INITIAL_NUM });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
@@ -974,6 +995,10 @@ void GameStatePlayUpdate(void)
 
             }
             server->mBulletsToCreate.clear();
+
+
+
+            
         }		
         else
         {
@@ -981,6 +1006,7 @@ void GameStatePlayUpdate(void)
                 spShip->modColor = client->GetColor();
 
             client->Tick();
+
 
             // First of all check if we need to disconnect any player
             for (auto& playerID : client->GetDisconnectedPlayersIDs())
@@ -1002,6 +1028,23 @@ void GameStatePlayUpdate(void)
                 vec2 pos{ 0, 0 };
                 mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true, 0) });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
+            }
+			
+            for (auto scpck : client->mScorePacketsToHandle) 
+            {
+                unsigned id = scpck.mPlayerID;
+                if (id == client->GetPlayerID()) 
+                    sScore = scpck.CurrentScore;
+                else 
+                {
+                    for (auto& rmtShip : mRemoteShips) 
+                    {
+                        if (rmtShip.mPlayerID == scpck.mPlayerID) 
+                        {
+                            rmtShip.mScore = scpck.CurrentScore;
+                        }
+                    }
+                }
             }
 
             // Update the current players

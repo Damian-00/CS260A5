@@ -243,6 +243,13 @@ namespace CS260
 			}
 		}
 	}
+	void Server::sendScorePacket(ScorePacket _packet)
+	{
+		for (auto& client : mClients) {
+			mProtocol.SendPacket(Packet_Types::ScoreUpdate, &_packet, &client.mEndpoint);
+		}
+
+	}
 	void Server::SendVoidPackets()
 	{
 		for (auto& client : mClients)
@@ -424,6 +431,9 @@ namespace CS260
 			{ return client.mAliveTimer > timeOutTimer; }),
 			mClients.end());
 	}
+
+
+
 
 	void Server::NotifyPlayerDisconnection(unsigned char playerID)
 	{

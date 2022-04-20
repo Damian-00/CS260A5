@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
+#include <map>
 
 namespace CS260
 {
@@ -83,6 +84,8 @@ namespace CS260
 		void RequestBullet(unsigned mOwnerID, glm::vec2 vel, glm::vec2 pos , float dir);
 
 		std::vector<BulletCreationPacket> mBulletsToCreate;
+
+		std::vector<ScorePacket> mScorePacketsToHandle;
 
 	private:
 		/*	\fn ConnectToServer

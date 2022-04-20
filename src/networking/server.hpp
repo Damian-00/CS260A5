@@ -82,6 +82,8 @@ namespace CS260
 		void SendBulletToAllClients(BulletCreationPacket mBullet);
 
 		void SendBulletDestroyPacket(BulletDestroyPacket& packet);
+
+		void sendScorePacket(ScorePacket _packet);
 	private:
 
 		void ReceivePackets();
