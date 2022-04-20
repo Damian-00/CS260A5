@@ -42,6 +42,7 @@ namespace CS260
 
 		sockaddr_in remoteEndpoint;
 
+		//set the endpoint
 		remoteEndpoint.sin_family = AF_INET;
 		remoteEndpoint.sin_addr = CS260::ToIpv4(ip_address);
 		remoteEndpoint.sin_port = htons(port);
@@ -60,6 +61,7 @@ namespace CS260
 
 		SetSocketBlocking(mSocket, false);
 
+		//set the protocol socket
 		mProtocol.SetSocket(mSocket);
 		if (ConnectToServer())
 		{
@@ -74,17 +76,17 @@ namespace CS260
 	*/
 	Client::~Client()
 	{
-		DisconnectFromServer();
+		
+		//DisconnectFromServer();
 		closesocket(mSocket);
 	
 	}
 
 	void Client::Tick()
 	{
-		//increase the keep alive timer
 		mKeepAliveTimer += tickRate;
 		
-		//reset the on last frame containers
+		// clear the vectors that refer to the previous tick
 		mNewPlayersOnFrame.clear();
 		mDisconnectedPlayersIDs.clear();
 		mAsteroidsCreated.clear();
@@ -95,18 +97,18 @@ namespace CS260
 		mScorePacketsToHandle.clear();
 		mBulletsToCreate.clear();
 
-		//receive the messages
+		
 		ReceiveMessages();
 
-		//tick the protocol to resend unacknowledged messages
+		//resend unacknowledged messages
 		mProtocol.Tick();
 		
 		HandleTimeOut();
+		
 	}
 
 	void Client::SendPlayerInfo(glm::vec2 pos, glm::vec2 vel,  float rotation, bool input)
 	{
-		//debug
 		std::stringstream str;
 		str << "Sending player info Pos: ";
 		str << pos.x;
@@ -115,7 +117,7 @@ namespace CS260
 		
 		PrintMessage(str.str());
 		{
-			//build the player info packet
+			//send the packet with my ship info
 			ShipUpdatePacket myShipPacket;
 			myShipPacket.mPlayerInfo.mID = mID;
 			myShipPacket.mPlayerInfo.pos = pos;
@@ -129,13 +131,11 @@ namespace CS260
 
 	std::vector<NewPlayerPacket>  Client::GetNewPlayers()
 	{
-		//get the new players added this frame
 		return mNewPlayersOnFrame;
 	}
 
 	std::vector<PlayerInfo> Client::GetPlayersInfo()
 	{
-		//return the state of the players
 		return mPlayersState;
 	}
 
@@ -177,24 +177,21 @@ namespace CS260
 
 	void Client::ReceiveMessages()
 	{
-		//poll the socket
 		WSAPOLLFD poll;
 		poll.fd = mSocket;
 		poll.events = POLLIN;
 		auto clock = now();
 		do
 		{
-			
+			// TODO: Handle timeout 
 			while (WSAPoll(&poll, 1, timeout) > 0)
 			{
-				//if error polling
 				if (poll.revents & POLLERR)
 				{
 					PrintError("Polling receiving players information");
 				}
 				else
 				{
-					//receive and handle the packets
 					ProtocolPacket packet;
 					unsigned size = sizeof(ProtocolPacket);
 					Packet_Types type;
@@ -219,7 +216,6 @@ namespace CS260
 
 	void Client::HandleReceivedMessage(ProtocolPacket& packet, Packet_Types type)
 	{
-		//depending on the type of the packet, handle it accordingly
 		mKeepAliveTimer = 0;
 		switch (type)
 		{
@@ -232,7 +228,6 @@ namespace CS260
 		case Packet_Types::ObjectUpdate:
 			break;
 		case Packet_Types::ShipPacket:
-
 
 			ShipUpdatePacket recPacket;
 			memcpy(&recPacket, packet.mBuffer.data(), sizeof(recPacket));
@@ -265,7 +260,6 @@ namespace CS260
 			break;
 		case Packet_Types::NewPlayer:
 		{
-			//handle the new player
 			NewPlayerPacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			mNewPlayersOnFrame.push_back(receivedPacket);
@@ -290,7 +284,6 @@ namespace CS260
 			// We were notified that a client was disconnected either by the server or by the client itself
 		case Packet_Types::NotifyPlayerDisconnection:
 		{
-			//add one player disconnection to handle
 			PlayerDisconnectPacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			mDisconnectedPlayersIDs.push_back(receivedPacket.mPlayerID);
@@ -298,7 +291,6 @@ namespace CS260
 		break;
 		case Packet_Types::AsteroidCreation:
 		{
-			//add one asteroid to create
 			AsteroidCreationPacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			mAsteroidsCreated.push_back(receivedPacket);
@@ -307,7 +299,6 @@ namespace CS260
 		
 		case Packet_Types::BulletCreation:
 		{
-			//add one bullet created to handle
 			BulletCreationPacket receivedPCK;
 			::memcpy(&receivedPCK, packet.mBuffer.data(), sizeof(receivedPCK));
 
@@ -316,7 +307,6 @@ namespace CS260
 			break;
 		case Packet_Types::BulletDestruction:
 		{
-			//add one destroyed bullet to handle
 			BulletDestroyPacket receivedPCK;
 			::memcpy(&receivedPCK, packet.mBuffer.data(), sizeof(receivedPCK));
 
@@ -325,7 +315,6 @@ namespace CS260
 			break;
 		case Packet_Types::AsteroidUpdate:
 		{
-			//add one updated asteroid to handle
 			AsteroidUpdatePacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			mAsteroidsUpdate.push_back(receivedPacket);
@@ -333,7 +322,6 @@ namespace CS260
 		break;
 		case Packet_Types::AsteroidDestroy:
 		{
-			//add one destroyed asteroid to handle
 			AsteroidDestructionPacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			mAsteroidsDestroyed.push_back(receivedPacket);
@@ -341,11 +329,9 @@ namespace CS260
 		break;
 		case Packet_Types::PlayerDie:
 		{
-			
 			PlayerDiePacket receivedPacket;
 			::memcpy(&receivedPacket, packet.mBuffer.data(), sizeof(receivedPacket));
 			
-			//acknowledge the player death
 			if (receivedPacket.mPlayerID == mID)
 			{
 				PrintMessage("Received player die ourself");
@@ -355,14 +341,12 @@ namespace CS260
 			else
 				PrintMessage("Received player die remote");
 			
-			//remove the player
 			auto found = std::find_if(mPlayersDied.begin(), mPlayersDied.end(), [&](auto&playerInfo)
 				{
 					return playerInfo.mPlayerID == receivedPacket.mPlayerID;
 				}
 			);
 			
-			//add to the players died this tick
 			if (found == mPlayersDied.end())
 			{
 				mPlayersDied.push_back(receivedPacket);
@@ -370,7 +354,6 @@ namespace CS260
 		}
 		break;
 
-		//add the score update change this tick
 		case Packet_Types::ScoreUpdate:
 
 			ScorePacket mCastedPack;
@@ -381,16 +364,15 @@ namespace CS260
 		}
 	}
 
+
 	void Client::PrintMessage(const std::string& msg)
 	{
-		//print only if verbose
 		if (mVerbose)
 			std::cerr << "[CLIENT] " << msg << std::endl;
 	}
 
 	void Client::PrintError(const std::string& msg)
 	{
-		//print the error to cerr
 		std::cerr << "[CLIENT] Error  " << std::to_string(WSAGetLastError()) << " at " << msg << std::endl;
 	}
 
@@ -406,7 +388,6 @@ namespace CS260
 
 	void Client::NotifyDisconnection()
 	{
-		//send the disconnection packet
 		PlayerDisconnectPacket packet;
 		packet.mPlayerID = mID;
 		mProtocol.SendPacket(Packet_Types::PlayerDisconnect, &packet);

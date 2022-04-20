@@ -122,7 +122,7 @@ namespace CS260
 					if (_addr) {
 
 						int sent = sendto(mSocket, ackPack.data(), sizeof(mAckHeader), 0, _addr, sizeof(sockaddr));
-						std::cout << WSAGetLastError();
+						//std::cout << WSAGetLastError();
 
 					}
 					else {
