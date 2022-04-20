@@ -245,7 +245,6 @@ namespace CS260
 	}
 	void Server::sendScorePacket(ScorePacket _packet)
 	{
-
 		for (auto& client : mClients) {
 			mProtocol.SendPacket(Packet_Types::ScoreUpdate, &_packet, &client.mEndpoint);
 		}

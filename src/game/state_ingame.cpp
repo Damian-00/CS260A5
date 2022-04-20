@@ -928,23 +928,16 @@ void GameStatePlayUpdate(void)
             // We added a new player
             for (auto& playerInfo : server->GetNewPlayers())
             {
-
-                
                 for (auto& ship : mRemoteShips) {
                     
                     CS260::ScorePacket thisPacket;
                     thisPacket.CurrentScore = ship.mScore;
                     thisPacket.mPlayerID = ship.mPlayerID;
                     server->sendScorePacket(thisPacket);
-
                 }
                 
 				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, SHIP_INITIAL_NUM });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
-
-
-                
-
             }
 
             // Update the player information
@@ -1014,22 +1007,6 @@ void GameStatePlayUpdate(void)
 
             client->Tick();
 
-            for (auto scpck : client->mScorePacketsToHandle) {
-
-                unsigned id = scpck.mPlayerID;
-                if (id == client->GetPlayerID()) {
-                    sScore = scpck.CurrentScore;
-                }
-                else {
-                    for (auto& rmtShip : mRemoteShips) {
-                        if (rmtShip.mPlayerID == scpck.mPlayerID) {
-                            rmtShip.mScore = scpck.CurrentScore;
-                        }
-                    }
-
-                }
-
-            }
 
             // First of all check if we need to disconnect any player
             for (auto& playerID : client->GetDisconnectedPlayersIDs())
@@ -1051,6 +1028,23 @@ void GameStatePlayUpdate(void)
                 vec2 pos{ 0, 0 };
                 mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true, 0) });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
+            }
+			
+            for (auto scpck : client->mScorePacketsToHandle) 
+            {
+                unsigned id = scpck.mPlayerID;
+                if (id == client->GetPlayerID()) 
+                    sScore = scpck.CurrentScore;
+                else 
+                {
+                    for (auto& rmtShip : mRemoteShips) 
+                    {
+                        if (rmtShip.mPlayerID == scpck.mPlayerID) 
+                        {
+                            rmtShip.mScore = scpck.CurrentScore;
+                        }
+                    }
+                }
             }
 
             // Update the current players
