@@ -228,7 +228,7 @@ namespace CS260
 					ProtocolPacket packet;
 					unsigned size = sizeof(ProtocolPacket);
 					Packet_Types type;
-					if (mProtocol.RecievePacket(&packet, &size, &type))
+					if (mProtocol.ReceivePacket(&packet, &size, &type))
 						HandleReceivedMessage(packet, type);
 				}
 			}

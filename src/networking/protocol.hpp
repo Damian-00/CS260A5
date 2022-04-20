@@ -51,6 +51,7 @@ namespace CS260 {
 		Packet_Types mPackType;
 
 	};
+
 	struct ProtocolPacket
 	{
 		std::array<char, MAX_BUFFER_SIZE > mBuffer;
@@ -178,31 +179,75 @@ namespace CS260 {
 	class Protocol {
 	
 	public:
+		/**
+		* @brief
+		*  Constructs the protocol initializing variables
+		*/
 		Protocol();
 		
+		/**
+		* @brief
+		*  Destroys the protocol and frees the network
+		*/
 		~Protocol();
 
+		/**
+		* @brief
+		* Update function to resend unackowledged messages
+		*/
 		void Tick();
 		
+		/**
+		* @brief
+		* Sends a packet given its type and the content
+		* @param type : type of the packet
+		* @param packet : content of the packet
+		* @param sockaddr : address to send the packet to, if null, sends to the connected endpoint
+		*/
 		void SendPacket(Packet_Types, void* packet, const sockaddr* = nullptr);
 
-		bool RecievePacket(void* _payload, unsigned* _size, Packet_Types* _type, sockaddr* _addr = nullptr);
-
+		/**
+		* @brief
+		* Receives a packet and fills the information as out parameters
+		* @param _payload : out parameter for the actual packet contentes
+		* @param _size : out parameter for the size of the pacekt
+		* @param _type : out parameter for the type of the packet
+		* @param _addr : optional out parameter for the endpoint of the sender of the packet
+		*/
+		bool ReceivePacket(void* _payload, unsigned* _size, Packet_Types* _type, sockaddr* _addr = nullptr);
+		
+		/**
+		* @brief
+		* Socket settor to know with which socket the protocol is working with
+		*/
 		void SetSocket(SOCKET);
 		
 	private:
 
+		/**
+		* @brief
+		* Given a type, returns the size of the packet of that size and whether or not it needs acknowledgement
+		* @param needsAck : out parameter for whether or not the packet of that type needs acknowledgement
+		* @return
+		* The size of that kind of packet
+		*/
 		unsigned GetTypeSize(Packet_Types type, bool* needsACK = nullptr);
-
+		
+		//actual sequence number of the protocol for when sending packets
 		unsigned mSequenceNumber;
-		//std::vector<std::pair<std::array<char, 8192>, unsigned>> mUnacknowledgedMessages;
+		
+		//messages we have sent but have not been acknowledged, we store the message, the time we have sent it ago, and to who we have sent it
 		std::vector<std::tuple<std::array<char, 8192>, unsigned, const sockaddr*>> mUnacknowledgedMessages;
+
+		//socket we are working with
 		SOCKET mSocket;
 
+		//time to resend an unacknowledged message
 		const unsigned mResendTime = 300;
 
 		const unsigned tickRate = 16;
 
+		//to not handle the same message twice, we store the last 100 messages we received, to check against them
 		std::list<unsigned> mLast100AckMessages{};
 	};
 }

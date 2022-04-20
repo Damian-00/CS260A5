@@ -995,9 +995,6 @@ void GameStatePlayUpdate(void)
 
             }
 
-
-
-            
         }		
         else
         {
