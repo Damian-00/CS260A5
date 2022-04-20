@@ -928,8 +928,23 @@ void GameStatePlayUpdate(void)
             // We added a new player
             for (auto& playerInfo : server->GetNewPlayers())
             {
+
+                
+                for (auto& ship : mRemoteShips) {
+                    
+                    CS260::ScorePacket thisPacket;
+                    thisPacket.CurrentScore = ship.mScore;
+                    thisPacket.mPlayerID = ship.mPlayerID;
+                    server->sendScorePacket(thisPacket);
+
+                }
+                
 				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, SHIP_INITIAL_NUM });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
+
+
+                
+
             }
 
             // Update the player information
