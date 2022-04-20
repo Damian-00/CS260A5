@@ -48,11 +48,11 @@ class game
         static game inst;
         return inst;
     }
-    void create(bool is_server, const std::string& address, uint16_t port, bool verbose);
+    void create(bool is_server, const std::string& address, uint16_t port, bool verbose, bool is_solo);
     bool update();
     void destroy();
 
-    void set_state_ingame(bool is_server, const std::string& address, uint16_t port, bool verbose);
+    void set_state_ingame(bool is_server, const std::string& address, uint16_t port, bool verbose, bool is_solo);
 
     float                      game_time() const { return m_game_time; }
     float                      dt() const { return m_dt; }

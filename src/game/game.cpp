@@ -15,6 +15,14 @@ void GameStatePlayDraw(void);
 void GameStatePlayFree(void);
 void GameStatePlayUnload(void);
 
+// State ingame solo
+void GameStatePlayLoadSolo(void);
+void GameStatePlayInitSolo(bool is_server, const std::string& address, uint16_t port, bool verbose);
+void GameStatePlayUpdateSolo(void);
+void GameStatePlayDrawSolo(void);
+void GameStatePlayFreeSolo(void);
+void GameStatePlayUnloadSolo(void);
+
 namespace {
 
 }
@@ -23,7 +31,7 @@ namespace {
  * @brief 
  * 
  */
-void game::create(bool is_server, const std::string& address, uint16_t port, bool verbose)
+void game::create(bool is_server, const std::string& address, uint16_t port, bool verbose, bool is_solo)
 {
     // Window
     m_window = new engine::window();
@@ -48,7 +56,7 @@ void game::create(bool is_server, const std::string& address, uint16_t port, boo
     m_frame_time_point = m_start_time_point;
     m_game_time        = 0.0f;
 	
-    set_state_ingame(is_server, address, port, verbose);
+    set_state_ingame(is_server, address, port, verbose, is_solo);
 }
 
 /**
@@ -84,17 +92,29 @@ bool game::update()
  * @brief 
  * 
  */
-void game::set_state_ingame(bool is_server, const std::string& address, uint16_t port, bool verbose)
+void game::set_state_ingame(bool is_server, const std::string& address, uint16_t port, bool verbose, bool is_solo)
 {
     if (m_state_free) m_state_free();
     if (m_state_unload) m_state_unload();
 
-    m_state_load   = &GameStatePlayLoad;
-    m_state_init   = &GameStatePlayInit;
-    m_state_update = &GameStatePlayUpdate;
-    m_state_render = &GameStatePlayDraw;
-    m_state_free   = &GameStatePlayFree;
-    m_state_unload = &GameStatePlayUnload;
+    if (!is_solo)
+    {
+        m_state_load = &GameStatePlayLoad;
+        m_state_init = &GameStatePlayInit;
+        m_state_update = &GameStatePlayUpdate;
+        m_state_render = &GameStatePlayDraw;
+        m_state_free = &GameStatePlayFree;
+        m_state_unload = &GameStatePlayUnload;
+    }
+    else
+    {
+        m_state_load = &GameStatePlayLoadSolo;
+        m_state_init = &GameStatePlayInitSolo;
+        m_state_update = &GameStatePlayUpdateSolo;
+        m_state_render = &GameStatePlayDrawSolo;
+        m_state_free = &GameStatePlayFreeSolo;
+        m_state_unload = &GameStatePlayUnloadSolo;		
+    }
 
     m_state_load();
     m_state_init(is_server, address, port, verbose);
