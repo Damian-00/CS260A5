@@ -66,6 +66,7 @@ namespace CS260
 	{
 
 		std::array<char, 8192> mBuffer{};
+		bool alreadyReceived = false;
 
 		int received;
 
@@ -87,22 +88,35 @@ namespace CS260
 
 			//in case we need to acknowledge the packet
 			if (mHeader.mNeedsAcknowledgement) {
-
-				//create the acknowledgement void packet
-				PacketHeader mAckHeader = { 0 , mHeader.mSeq , false, Packet_Types::VoidPacket };
-				std::array<char, 8192> ackPack;
-				memcpy(&ackPack, &mAckHeader, sizeof(mAckHeader));
-
-
-				if (_addr) {
-
-					int sent = sendto(mSocket, ackPack.data(), sizeof(mAckHeader), 0, _addr, sizeof(sockaddr));
-					std::cout << WSAGetLastError();
-
+				for (auto& i : mLast100AckMessages) {
+					if (i == mHeader.mSeq) {
+						alreadyReceived = true;
+					}
 				}
-				else {
 
-					int sent = send(mSocket, ackPack.data(), sizeof(PacketHeader), 0);
+				if (!alreadyReceived) {
+					//create the acknowledgement void packet
+					PacketHeader mAckHeader = { 0 , mHeader.mSeq , false, Packet_Types::VoidPacket };
+					std::array<char, 8192> ackPack;
+					memcpy(&ackPack, &mAckHeader, sizeof(mAckHeader));
+
+
+					if (_addr) {
+
+						int sent = sendto(mSocket, ackPack.data(), sizeof(mAckHeader), 0, _addr, sizeof(sockaddr));
+						std::cout << WSAGetLastError();
+
+					}
+					else {
+
+						int sent = send(mSocket, ackPack.data(), sizeof(PacketHeader), 0);
+					}
+
+					mLast100AckMessages.push_back(mHeader.mSeq);
+
+					if (mLast100AckMessages.size() > 100) {
+						mLast100AckMessages.pop_front();
+					}
 				}
 			}
 
@@ -123,12 +137,21 @@ namespace CS260
 
 			}
 
+
+			if (!alreadyReceived){
 			*_type = mHeader.mPackType;
 
 			unsigned mPacketSize = GetTypeSize(mHeader.mPackType);
 
 			*_size = mPacketSize;
 			memcpy(_payload, mBuffer.data() + sizeof(PacketHeader), mPacketSize);
+			}
+			else {
+
+				*_type = Packet_Types::VoidPacket;
+				*_size = 0;
+
+			}
 		}
 	}
 
