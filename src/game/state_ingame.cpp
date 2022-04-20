@@ -1029,7 +1029,7 @@ void GameStatePlayUpdate(void)
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
 			
-            for (auto scpck : client->mScorePacketsToHandle) 
+            for (auto scpck : client->GetScorePacketsToHandle()) 
             {
                 unsigned id = scpck.mPlayerID;
                 if (id == client->GetPlayerID()) 
