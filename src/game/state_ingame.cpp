@@ -935,8 +935,8 @@ void GameStatePlayUpdate(void)
                     thisPacket.mPlayerID = ship.mPlayerID;
                     server->sendScorePacket(thisPacket);
                 }
-                
-				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &playerInfo.mPlayerInfo.pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, SHIP_INITIAL_NUM });
+                glm::vec2 pos = playerInfo.mPlayerInfo.pos;
+				mRemoteShips.push_back(RemoteShipInfo{static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, playerInfo.mPlayerInfo.rot, true, 0), 0, SHIP_INITIAL_NUM });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
             }
 
@@ -978,9 +978,11 @@ void GameStatePlayUpdate(void)
 
             server->SendAsteroidsUpdate();
 
-            for (auto& obj : server->GetBulletsToCreate()) {
-
-                auto inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &obj.mPos, &obj.mVel, obj.mDir, true, sLastGeneratedID);
+            for (auto& obj : server->GetBulletsToCreate()) 
+            {
+                glm::vec2 pos = obj.mPos;
+                glm::vec2 vel = obj.mVel;
+                GameObjInst* inst = gameObjInstCreate(TYPE_BULLET, BULLET_SIZE, &pos, &vel, obj.mDir, true, sLastGeneratedID);
 
                 inst->mOwnerID = obj.mOwnerID; //set the bullet owner
 
@@ -992,12 +994,7 @@ void GameStatePlayUpdate(void)
                 sendPCK.mVel = obj.mVel;
 
                 server->SendBulletToAllClients(sendPCK);
-
             }
-
-
-
-            
         }		
         else
         {

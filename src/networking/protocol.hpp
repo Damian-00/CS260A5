@@ -153,7 +153,7 @@ namespace CS260 {
 	struct PlayerDiePacket
 	{
 		unsigned char mPlayerID;
-		unsigned char mRemainingLifes;
+		unsigned short mRemainingLifes;
 	};
 	struct PlayerDisconnectPacket
 	{

@@ -1,5 +1,17 @@
+/*!
+******************************************************************************
+	\file    server.cpp
+	\author  David Miranda
+	\par     DP email: m.david@digipen.edu
+	\par     Course: CS260
+	\date    04/20/2022
+
+	\brief
+	Implementation for all the functionalities required by the server.
+*******************************************************************************/
+
 #include "server.hpp"
-#include "server.hpp"
+
 #include "utils.hpp"
 
 namespace CS260
@@ -51,7 +63,7 @@ namespace CS260
 
 		mProtocol.SetSocket(mSocket);
 
-		srand(time(0));
+		srand(static_cast<unsigned int>(time(0)));
 	}
 
 	Server::~Server()
@@ -62,14 +74,17 @@ namespace CS260
 	void Server::Tick()
 	{
 		// Update the timer that updates the asteroids
+		// Below, when needed it will send the current state of the asteroids to the clients
 		mUpdateAsteroidsTimer += tickRate;
 		
 		// Update Keep alive timer
 		for (auto& client : mClients)
 			client.mAliveTimer += tickRate;
 		
-		mDisconnectedPlayersIDs.clear();
+		// Clear all the vectors that are used to send data to the clients
+		// To fill them again if needed below
 		mNewPlayersOnFrame.clear();
+		mDisconnectedPlayersIDs.clear();
 		mBulletsToCreate.clear();
 
 		
@@ -82,37 +97,24 @@ namespace CS260
 		// This is to avoid having the clients disconnecting while they are playing by their own
 		SendVoidPackets();
 
+		// Disconnect players if their timer runs out
 		CheckTimeoutPlayer();
 
+		// Handle save disconnection with clients
 		HandleDisconnection();
-		
-
-		// TOOD: We may start the game with less than 4 players
-		// For the moment, wait untill there are 4 players connected
-		//if (mClients.size() < 2)
-		//{
-		//	HandleNewClients();
-		//}
-		//// Handle game state
-		//else
-		//{ 
-		//	// Send player positions to all clients
-		//	ReceivePlayersInformation();
-		//	SendPlayerPositions();
-		//}
 	}
 
 	int Server::PlayerCount()
 	{
-		return mClients.size();
+		return static_cast<int>(mClients.size());
 	}
 
-	std::vector<NewPlayerPacket> Server::GetNewPlayers()
+	const std::vector<NewPlayerPacket>& Server::GetNewPlayers()
 	{
 		return mNewPlayersOnFrame;
 	}
 
-	std::vector<ClientInfo> Server::GetPlayersInfo()
+	const std::vector<ClientInfo>& Server::GetPlayersInfo()
 	{
 		return mClients;
 	}
@@ -122,7 +124,7 @@ namespace CS260
 		return mDisconnectedPlayersIDs;
 	}
 
-	std::vector<BulletRequestPacket> Server::GetBulletsToCreate()
+	const std::vector<BulletRequestPacket>& Server::GetBulletsToCreate()
 	{
 		return mBulletsToCreate;
 	}
@@ -131,13 +133,12 @@ namespace CS260
 	{
 		ShipUpdatePacket mPacket;
 		mPacket.mPlayerInfo = _playerinfo;
-
-		//PrintMessage("Sending player info with id " + std::to_string(static_cast<int>(_playerinfo.mID)));
 		mProtocol.SendPacket(Packet_Types::ShipPacket, &mPacket, &_endpoint);
 	}
 
 	void Server::SendAsteroidCreation(unsigned short id, glm::vec2 position, glm::vec2 velocity, float scale, float angle)
 	{
+		// Store all the required information to create an asteroid
 		AsteroidCreationPacket packet;
 		packet.mObjectID = id;
 		packet.mScale = scale;
@@ -145,8 +146,11 @@ namespace CS260
 		packet.mPosition = position;
 		packet.mVelocity = velocity;
 
+		// Send the packet to all clients safely, the protocol will take care of it
 		for (auto& client : mClients)
 			mProtocol.SendPacket(Packet_Types::AsteroidCreation, &packet, &client.mEndpoint);
+		
+		// Insert the current asteroid information in the server copy of the alive asteroids list
 		mAliveAsteroids.push_back(packet);
 	}
 
@@ -165,6 +169,7 @@ namespace CS260
 
 	void Server::SendAsteroidsUpdate()
 	{
+		// The timer updated in the tick function will be used in here
 		if (mUpdateAsteroidsTimer > updateAsteroids)
 		{
 			for (auto& asteroid : mAliveAsteroids)
@@ -209,7 +214,6 @@ namespace CS260
 			mProtocol.SendPacket(Packet_Types::AsteroidDestroy, &packet, &client.mEndpoint);
 	}
 
-
 	void Server::SendBulletToAllClients(BulletCreationPacket mBullet)
 	{
 		for (auto& client : mClients)
@@ -240,8 +244,8 @@ namespace CS260
 			}
 			else
 			{
-				ProtocolPacket packet{};
-				Packet_Types type{};
+				ProtocolPacket packet;
+				Packet_Types type;
 				sockaddr senderAddress;
 				unsigned size = 0;
 
@@ -250,13 +254,13 @@ namespace CS260
 			}
 		}
 	}
+	
 	void Server::sendScorePacket(ScorePacket _packet)
 	{
-		for (auto& client : mClients) {
+		for (auto& client : mClients)
 			mProtocol.SendPacket(Packet_Types::ScoreUpdate, &_packet, &client.mEndpoint);
-		}
-
 	}
+	
 	void Server::SendVoidPackets()
 	{
 		for (auto& client : mClients)
@@ -264,30 +268,28 @@ namespace CS260
 			mProtocol.SendPacket(Packet_Types::VoidPacket, 0, &client.mEndpoint);
 		}
 	}
+	
 	void Server::HandleReceivedPacket(ProtocolPacket& packet, Packet_Types type, sockaddr& senderAddress)
 	{
 		switch (type) 
 		{
-		case Packet_Types::VoidPacket:
-			break;
-		case Packet_Types::ObjectCreation:
-			break;
-		case Packet_Types::ObjectDestruction:
-			break;
-		case Packet_Types::ObjectUpdate:
-			break;
 		case Packet_Types::ShipPacket:
-
+		{
 			if (!mClients.empty())
-			for (auto& i : mClients) {
-				if (ShipUpdatePacket * mCastedPacket = reinterpret_cast<ShipUpdatePacket*>(&packet)) {
-					if (i.mPlayerInfo.mID == mCastedPacket->mPlayerInfo.mID) {
-						i.mPlayerInfo = mCastedPacket->mPlayerInfo;
-						i.mAliveTimer = 0;
+			{
+				for (auto& i : mClients)
+				{
+					if (ShipUpdatePacket* mCastedPacket = reinterpret_cast<ShipUpdatePacket*>(&packet))
+					{
+						if (i.mPlayerInfo.mID == mCastedPacket->mPlayerInfo.mID)
+						{
+							i.mPlayerInfo = mCastedPacket->mPlayerInfo;
+							i.mAliveTimer = 0;
+						}
 					}
 				}
 			}
-
+		}
 			break;
 		case Packet_Types::SYN:
 		{
@@ -298,8 +300,10 @@ namespace CS260
 			glm::vec4 color(((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), ((double)rand() / (RAND_MAX)), 1.0f); 
 
 			//avoid colors being too dark
-			for (int i = 0; i < 3; i++) {
-				if (color[i] < 0.5) {
+			for (int i = 0; i < 3; i++) 
+			{
+				if (color[i] < 0.5) 
+				{
 					color[i] = 0.5;
 				}
 			}
@@ -391,7 +395,6 @@ namespace CS260
 		newPlayerPacket.mPlayerInfo.rot = 0;
 		newPlayerPacket.color = packet.color;
 		
-
 		mNewPlayersOnFrame.push_back(newPlayerPacket);
 
 		PrintMessage("Notifying current clients of new player");
@@ -435,9 +438,13 @@ namespace CS260
 				PlayerDisconnectPacket packet;
 				packet.mPlayerID = discconectClient.mPlayerInfo.mID;
 				
+				// Force the client to disconnect
 				mProtocol.SendPacket(Packet_Types::PlayerDisconnect, &packet, &discconectClient.mEndpoint);
 
+				// Update the game state
 				mDisconnectedPlayersIDs.push_back(discconectClient.mPlayerInfo.mID);
+
+				// Notify the rest of the clients of this player's disconnection
 				NotifyPlayerDisconnection(discconectClient.mPlayerInfo.mID);
 			}
 		}
@@ -446,9 +453,6 @@ namespace CS260
 			{ return client.mAliveTimer > timeOutTimer; }),
 			mClients.end());
 	}
-
-
-
 
 	void Server::NotifyPlayerDisconnection(unsigned char playerID)
 	{
@@ -497,46 +501,6 @@ namespace CS260
 				return client.mDisconnectTries >= disconnectTries;
 			}),
 			mClients.end());
-	}
-
-
-	/*	\fn SendRST
-	\brief	Sends reset message
-	*/
-	bool Server::SendRST(sockaddr& senderAddress)
-	{
-		//packet.AttachACK(0);
-		//packet.SetCode(RSTCODE);
-		//int size = sizeof(senderAddress);
-		//int bytesReceived = ::sendto(mSocket, reinterpret_cast<char*>(&packet), sizeof(packet), 0, &senderAddress, size);
-		//if (bytesReceived == SOCKET_ERROR)
-		//{
-		//	PrintError("Error sending RST");
-		//}
-		//else
-		//	PrintMessage("[SERVER] Sending RST correctly");
-		//
-		return false;
-	}
-
-	void Server::SendPlayerPositions()
-	{
-		for (auto& senderClient : mClients)
-		{
-			for (auto& receiverClient : mClients)
-			{
-				// Avoid sending to itself
-				if (senderClient.mPlayerInfo.mID != receiverClient.mPlayerInfo.mID)
-				{
-					//senderClient.mPlayerInfo.mCode = PLAYERINFO;
-					auto bytesReceived = ::sendto(mSocket, reinterpret_cast<char*>( &senderClient.mPlayerInfo), sizeof(PlayerInfo), 0, &receiverClient.mEndpoint, sizeof(receiverClient.mEndpoint));
-					if(bytesReceived == SOCKET_ERROR)
-					{
-						// TODO: Handle error
-					}
-				}
-			}
-		}
 	}
 
 	void Server::PrintMessage(const std::string& msg)
