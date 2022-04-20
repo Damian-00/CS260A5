@@ -91,6 +91,7 @@ namespace CS260 {
 	struct NewPlayerPacket
 	{
 		PlayerInfo mPlayerInfo;
+		unsigned short mRemainingLifes;
 		glm::vec4 color;
 	};
 	struct ShipUpdatePacket

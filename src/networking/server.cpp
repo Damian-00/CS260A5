@@ -25,7 +25,8 @@ namespace CS260
 		mDisconnectTries(0),
 		mPlayerInfo(playerInfo),
 		color(col),
-		mDead(false)
+		mDead(false),
+		mRemainingLifes(3)
 	{
 	}
 
@@ -210,7 +211,10 @@ namespace CS260
 		{
 			// Update the client dead state
 			if (client.mPlayerInfo.mID == playerID)
+			{
 				client.mDead = true;
+				client.mRemainingLifes = remainingLifes;
+			}
 
 			mProtocol.SendPacket(Packet_Types::PlayerDie, &packet, &client.mEndpoint);
 		}
@@ -406,6 +410,7 @@ namespace CS260
 		newPlayerPacket.mPlayerInfo.pos = { 0,0 };
 		newPlayerPacket.mPlayerInfo.rot = 0;
 		newPlayerPacket.color = packet.color;
+		newPlayerPacket.mRemainingLifes = 3;
 		
 		mNewPlayersOnFrame.push_back(newPlayerPacket);
 
@@ -426,6 +431,7 @@ namespace CS260
 			newPlayerPacket.mPlayerInfo.pos = client.mPlayerInfo.pos;
 			newPlayerPacket.mPlayerInfo.rot = client.mPlayerInfo.rot;
 			newPlayerPacket.color = client.color;
+			newPlayerPacket.mRemainingLifes = client.mRemainingLifes;
 			mProtocol.SendPacket(Packet_Types::NewPlayer, &newPlayerPacket, &senderAddress);
 		}
 

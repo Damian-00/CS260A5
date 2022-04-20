@@ -162,6 +162,7 @@ static float sShipRotSpeed;
 
 // number of ship available (lives, 0 = game over)
 static long sShipCtr;
+static bool won = false;
 
 // number of special attack
 static long sSpecialCtr;
@@ -289,7 +290,7 @@ void GameStatePlayUpdate(void)
         }
     } else {
         // Update the ship only if we have lives to spend
-        if (sShipCtr > 0)
+        if (sShipCtr > 0 && !won)
         {
             if (game::instance().input_key_pressed(GLFW_KEY_UP)) {
 #if 0
@@ -364,6 +365,14 @@ void GameStatePlayUpdate(void)
 
                 if (!is_server)
                     client->RequestBullet(client->GetPlayerID(), vel, spShip->posCurr, spShip->dirCurr);
+            }
+
+            for (auto& ship : mRemoteShips)
+            {
+                if (ship.mShipsLeft == 0)
+                    won = true;
+                else
+                    won = false;
             }
         }
     }
@@ -855,6 +864,7 @@ void GameStatePlayUpdate(void)
                 vec2 pos{ 0, 0 };
                 mRemoteShips.push_back(RemoteShipInfo{ static_cast<unsigned char> (playerInfo.mPlayerInfo.mID), gameObjInstCreate(TYPE_SHIP, SHIP_SIZE, &pos, 0, 0.0f, true, 0) });
                 mRemoteShips.back().mShipInstance->modColor = playerInfo.color;
+                mRemoteShips.back().mShipsLeft = playerInfo.mRemainingLifes;
             }
 			
             for (auto scpck : client->GetScorePacketsToHandle()) 
@@ -863,7 +873,7 @@ void GameStatePlayUpdate(void)
                 if (id == client->GetPlayerID())
                 {
                     sScore = scpck.CurrentScore;
-                    if ((sScore % AST_SHIP_RATIO) == 0)
+                    if ((sScore % AST_SHIP_RATIO) == 0 && sShipCtr && sScore)
                         sShipCtr++;
                 }
                 else 
@@ -1016,7 +1026,7 @@ void GameStatePlayUpdate(void)
             }
 
             //if (client->Connected() && spShip)
-            if (client->Connected() && sShipCtr > 0)
+            if (client->Connected())// && sShipCtr > 0)
                 client->SendPlayerInfo(spShip->posCurr, spShip->velCurr, spShip->dirCurr, game::instance().input_key_pressed(GLFW_KEY_UP));
 
 			// Handle window about to clsoe
@@ -1059,6 +1069,26 @@ void GameStatePlayDraw(void)
         // skip non-active object
         if ((pInst->flag & FLAG_ACTIVE) == 0)
             continue;
+
+        if (!is_server)
+        {
+            bool continueFlag = false;
+            if (pInst->pObject->type == TYPE_SHIP)
+            {
+                if (pInst == spShip && sShipCtr == 0)
+                    continueFlag = true;
+                else
+                {
+                    for (auto& ship : mRemoteShips)
+                    {
+                        if (ship.mShipInstance == pInst && ship.mShipsLeft == 0)
+                            continueFlag = true;
+                    }
+                }
+                if (continueFlag)
+                    continue;
+            }
+        }
 
         // if (pInst->pObject->type != TYPE_SHIP) continue;
         tmp = /*tmpScale * */ vp * sGameObjInstList[i].transform;
@@ -1104,10 +1134,15 @@ void GameStatePlayDraw(void)
         sprintf(strBuffer, "Score#: %d", sScore);
         game::instance().font_default()->render(strBuffer, 0, h - 60, 24, vp, spShip ? spShip->modColor : glm::vec4(1.0f));
 
+        if (won)
+        {
+            sprintf(strBuffer, "YOU WON!");
+            game::instance().font_default()->render(strBuffer, (gAEWinMaxX - gAEWinMinX) / 2, (gAEWinMaxY - gAEWinMinY) / 2, 24, vp, spShip->modColor);
+        }
         if (sShipCtr == 0)
         {
             sprintf(strBuffer, "Game Over Player#: 1");
-            game::instance().font_default()->render(strBuffer, spShip->posCurr.x, spShip->posCurr.y, 24, vp, spShip->modColor);
+            game::instance().font_default()->render(strBuffer, (gAEWinMaxX - gAEWinMinX) / 2, (gAEWinMaxY - gAEWinMinY) / 2, 24, vp, spShip->modColor);
         }
 			
         for (unsigned i = 0; i < mRemoteShips.size(); ++i)
@@ -1121,11 +1156,6 @@ void GameStatePlayDraw(void)
 
                 sprintf(strBuffer, "Score#: %d", mRemoteShips[i].mScore);
                 game::instance().font_default()->render(strBuffer, (i + 1) * (w - 50) / totalShips, h - 60, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
-            }
-            if (mRemoteShips[i].mShipsLeft == 0)
-            {
-                sprintf(strBuffer, "Game Over Player#: %d", i + 2);
-                game::instance().font_default()->render(strBuffer, mRemoteShips[i].mShipInstance->posCurr.x, mRemoteShips[i].mShipInstance->posCurr.y, 24, vp, mRemoteShips[i].mShipInstance ? mRemoteShips[i].mShipInstance->modColor : glm::vec4(1.0f));
             }
 				
         }

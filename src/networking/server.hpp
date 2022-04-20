@@ -36,6 +36,7 @@ namespace CS260
 		// Player Information
 		PlayerInfo mPlayerInfo;
 		glm::vec4 color;
+		unsigned short mRemainingLifes;
 		bool mDead = false;
 	};
 	
